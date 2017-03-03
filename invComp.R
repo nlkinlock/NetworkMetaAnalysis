@@ -31,6 +31,7 @@ for (i in 1:length(spp.list)) {
     inv.output[[i]] <- temp
   }
 }
+inv.output[[31]] <- data.frame(UniqueID = rep("9999", 7), Invasive = c(1, 0, 1, 0, 1, 0, 0))
 
 # load respective networks for each case in both MixMono and Cntrl
 setwd("/Users/nicolekinlock/Documents/Plant Ecology/NetworkMetaAnalysis/Networks/Complete/RII/MixMono")
@@ -109,8 +110,8 @@ for (k in 1:iterations) {
 c.in.strength <- data.frame(Status = c(rep(1, length = length(s.in.c.store.inv)), rep(0, length = length(s.in.c.store.nat))), InStrength = c(s.in.c.store.inv, s.in.c.store.nat))
 t.c.in <- c()
 for (k in 1:iterations) {
-  inv.idx <- sample(in.strength$Status, size = length(in.strength$Status), replace = FALSE)
-  t.c.in[k] <- t.test(in.strength$InStrength[inv.idx == 1], in.strength$InStrength[inv.idx == 0])$statistic
+  inv.idx <- sample(c.in.strength$Status, size = length(c.in.strength$Status), replace = FALSE)
+  t.c.in[k] <- t.test(c.in.strength$InStrength[inv.idx == 1], c.in.strength$InStrength[inv.idx == 0])$statistic
 }
 
 c.out.strength <- data.frame(Status = c(rep(1, length = length(s.out.c.store.inv)), rep(0, length = length(s.out.c.store.nat))), OutStrength = c(s.out.c.store.inv, s.out.c.store.nat))

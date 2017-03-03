@@ -14,6 +14,7 @@ df <- df.init[df.init$Status == "Complete", !(names(df.init) %in% col.remove)]
 spp.list <- setNames(split(as.character(df$Species), seq(nrow(df))), df$UniqueID)
 spp.list <- lapply(spp.list, function(x) strsplit(x, ", "))
 spp.list <- lapply(spp.list, unlist)
+unlist(lapply(spp.list, length))
 # loop to find species matches in multiple networks
 outputdf <- data.frame(spp = character(), matchFrom = character(), matchIn = character(), Position = character(), stringsAsFactors = FALSE)
 rowcount <- 1
@@ -34,6 +35,9 @@ for (i in 1:length(spp.list)) {
 }
 outputdf <- outputdf[order(outputdf$spp), ]
 # species matches to compare across networks: Dactylis glomerata, Festuca arundinacea, Plantago lanceolata, and Trifolium repens
+
+# set number of bootstrap iterations
+iterations <- 10000
 
 #
 # DACTYLIS GLOMERATA ------------------------------------------------------------
@@ -65,9 +69,7 @@ for (r in 1:length(M.dact)) {
 # empty data frames to store output for metrics
 # general metrics separate from distribution fit metrics
 dact.meta <- data.frame(Species = character(), UniqueID = integer(), Metric = character(), Mean = numeric(), CIL = numeric(), CIU = numeric(), stringsAsFactors = FALSE)
-rowNames <- c("out strength", "in strength", "comp in strength", "comp out strength", "fac in strength", "fac out strength", "rank")
-# set number of bootstrap iterations
-iterations <- 10000
+rowNames <- c("out strength", "in strength", "comp in strength", "comp out strength", "fac in strength", "fac out strength")
 setwd("/Users/nicolekinlock/Documents/Plant Ecology/NetworkMetaAnalysis")
 for (m in 1:length(M.dact)) {
   # initialize temp vectors to store output for a given network
@@ -77,7 +79,6 @@ for (m in 1:length(M.dact)) {
   s.out.c.store <- numeric(length = iterations)
   s.in.f.store <- numeric(length = iterations)
   s.out.f.store <- numeric(length = iterations)
-  rank.store <- numeric(length = iterations)
   for (count in 1:iterations) {
     # nested loop for bootstrap
     pos <- as.integer(dact$Position[m])
@@ -107,16 +108,13 @@ for (m in 1:length(M.dact)) {
     s.out.c.store[count] <- s.out.c[pos]
     s.in.f.store[count] <- s.in.f[pos]
     s.out.f.store[count] <- s.out.f[pos]
-    # rank in competitive hierarchy
-    source(file = "transitivity.R")
-    rank.store[count] <- rank.obs[pos]
   }
   # add output from one network to data frame with all networks
-  dact.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store), mean(rank.store))), value.name = "Mean")
+  dact.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store))), value.name = "Mean")
   dact.CIL <- melt(unname(c(quantile(s.out.store, probs = 0.025), quantile(s.in.store, probs = 0.025), quantile(s.in.c.store, probs = 0.025), quantile(s.out.c.store, probs = 0.025), 
-                            quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025), quantile(rank.store, probs = 0.025))), value.name = "CIL")
+                            quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025))), value.name = "CIL")
   dact.CIU <- melt(unname(c(quantile(s.out.store, probs = 0.975), quantile(s.in.store, probs = 0.975), quantile(s.in.c.store, probs = 0.975), quantile(s.out.c.store, probs = 0.975),
-                            quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975), quantile(rank.store, probs = 0.975))), value.name = "CIU")
+                            quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975))), value.name = "CIU")
   dact.temp <- data.frame(Species = rep("Dactylis glomerata", nrow(dact.mean)), UniqueID = rep(as.numeric(dact$matchIn[m]), nrow(dact.mean)), Metric = rowNames, Mean = dact.mean, CIL = dact.CIL, CIU = dact.CIU)
   dact.meta <- rbind(dact.meta, dact.temp) 
   print(paste("Network ", m, " is complete"))
@@ -152,6 +150,7 @@ for (r in 1:length(M.fest)) {
 # empty data frames to store output for metrics
 # general metrics separate from distribution fit metrics
 fest.meta <- data.frame(Species = character(), UniqueID = integer(), Metric = character(), Mean = numeric(), CIL = numeric(), CIU = numeric(), stringsAsFactors = FALSE)
+setwd("/Users/nicolekinlock/Documents/Plant Ecology/NetworkMetaAnalysis")
 for (m in 1:length(M.fest)) {
   # initialize temp vectors to store output for a given network
   s.out.store <- numeric(length = iterations)
@@ -160,7 +159,6 @@ for (m in 1:length(M.fest)) {
   s.out.c.store <- numeric(length = iterations)
   s.in.f.store <- numeric(length = iterations)
   s.out.f.store <- numeric(length = iterations)
-  rank.store <- numeric(length = iterations)
   for (count in 1:iterations) {
     # nested loop for bootstrap
     pos <- as.integer(fest$Position[m])
@@ -192,11 +190,11 @@ for (m in 1:length(M.fest)) {
     s.out.f.store[count] <- s.out.f[pos]
   }
   # add output from one network to data frame with all networks
-  fest.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store), mean(rank.store))), value.name = "Mean")
+  fest.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store))), value.name = "Mean")
   fest.CIL <- melt(unname(c(quantile(s.out.store, probs = 0.025), quantile(s.in.store, probs = 0.025), quantile(s.in.c.store, probs = 0.025), quantile(s.out.c.store, probs = 0.025), 
-                            quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025), quantile(rank.store, probs = 0.025))), value.name = "CIL")
+                            quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025))), value.name = "CIL")
   fest.CIU <- melt(unname(c(quantile(s.out.store, probs = 0.975), quantile(s.in.store, probs = 0.975), quantile(s.in.c.store, probs = 0.975), quantile(s.out.c.store, probs = 0.975),
-                            quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975), quantile(rank.store, probs = 0.975))), value.name = "CIU")
+                            quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975))), value.name = "CIU")
   fest.temp <- data.frame(Species = rep("Festuca arundinacea", nrow(fest.mean)), UniqueID = rep(as.numeric(fest$matchIn[m]), nrow(fest.mean)), Metric = rowNames, Mean = fest.mean, CIL = fest.CIL, CIU = fest.CIU)
   fest.meta <- rbind(fest.meta, fest.temp)
   print(paste("Network ", m, " is complete"))
@@ -234,6 +232,7 @@ for (r in 1:length(M.plan)) {
 # empty data frames to store output for metrics
 # general metrics separate from distribution fit metrics
 plan.meta <- data.frame(Species = character(), UniqueID = integer(), Metric = character(), Mean = numeric(), CIL = numeric(), CIU = numeric(), stringsAsFactors = FALSE)
+setwd("/Users/nicolekinlock/Documents/Plant Ecology/NetworkMetaAnalysis")
 for (m in 1:length(M.plan)) {
   # initialize temp vectors to store output for a given network
   s.out.store <- numeric(length = iterations)
@@ -242,7 +241,6 @@ for (m in 1:length(M.plan)) {
   s.out.c.store <- numeric(length = iterations)
   s.in.f.store <- numeric(length = iterations)
   s.out.f.store <- numeric(length = iterations)
-  rank.store <- numeric(length = iterations)
   for (count in 1:iterations) {
     # nested loop for bootstrap
     pos <- as.integer(plan$Position[m])
@@ -274,11 +272,11 @@ for (m in 1:length(M.plan)) {
     s.out.f.store[count] <- s.out.f[pos]
   }
   # add output from one network to data frame with all networks
-  plan.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store), mean(rank.store))), value.name = "Mean")
+  plan.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store))), value.name = "Mean")
   plan.CIL <- melt(unname(c(quantile(s.out.store, probs = 0.025), quantile(s.in.store, probs = 0.025), quantile(s.in.c.store, probs = 0.025), quantile(s.out.c.store, probs = 0.025), 
-                            quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025), quantile(rank.store, probs = 0.025))), value.name = "CIL")
+                            quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025))), value.name = "CIL")
   plan.CIU <- melt(unname(c(quantile(s.out.store, probs = 0.975), quantile(s.in.store, probs = 0.975), quantile(s.in.c.store, probs = 0.975), quantile(s.out.c.store, probs = 0.975),
-                            quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975), quantile(rank.store, probs = 0.975))), value.name = "CIU")
+                            quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975))), value.name = "CIU")
   plan.temp <- data.frame(Species = rep("Plantago lanceolata", nrow(plan.mean)), UniqueID = rep(as.numeric(plan$matchIn[m]), nrow(plan.mean)), Metric = rowNames, Mean = plan.mean, CIL = plan.CIL, CIU = plan.CIU)
   plan.meta <- rbind(plan.meta, plan.temp)
   print(paste("Network ", m, " is complete"))
@@ -313,6 +311,7 @@ for (r in 1:length(M.trif)) {
 # empty data frames to store output for metrics
 # general metrics separate from distribution fit metrics
 trif.meta <- data.frame(Species = character(), UniqueID = integer(), Metric = character(), Mean = numeric(), CIL = numeric(), CIU = numeric(), stringsAsFactors = FALSE)
+setwd("/Users/nicolekinlock/Documents/Plant Ecology/NetworkMetaAnalysis")
 for (m in 1:length(M.trif)) {
   # initialize temp vectors to store output for a given network
   s.out.store <- numeric(length = iterations)
@@ -321,7 +320,6 @@ for (m in 1:length(M.trif)) {
   s.out.c.store <- numeric(length = iterations)
   s.in.f.store <- numeric(length = iterations)
   s.out.f.store <- numeric(length = iterations)
-  rank.store <- numeric(length = iterations)
   for (count in 1:iterations) {
     # nested loop for bootstrap
     pos <- as.integer(trif$Position[m])
@@ -353,11 +351,11 @@ for (m in 1:length(M.trif)) {
     s.out.f.store[count] <- s.out.f[pos]
   }
   # add output from one network to data frame with all networks
-  trif.mean <- melt(unname(c(mean(s.out.store),  mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store), mean(rank.store))), value.name = "Mean")
+  trif.mean <- melt(unname(c(mean(s.out.store), mean(s.in.store), mean(s.in.c.store), mean(s.out.c.store), mean(s.in.f.store), mean(s.out.f.store))), value.name = "Mean")
   trif.CIL <- melt(unname(c(quantile(s.out.store, probs = 0.025), quantile(s.in.store, probs = 0.025), quantile(s.in.c.store, probs = 0.025), quantile(s.out.c.store, probs = 0.025), 
-    quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025), quantile(rank.store, probs = 0.025))), value.name = "CIL")
+    quantile(s.in.f.store, probs = 0.025), quantile(s.out.f.store, probs = 0.025))), value.name = "CIL")
   trif.CIU <- melt(unname(c(quantile(s.out.store, probs = 0.975), quantile(s.in.store, probs = 0.975), quantile(s.in.c.store, probs = 0.975), quantile(s.out.c.store, probs = 0.975),
-    quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975), quantile(rank.store, probs = 0.975))), value.name = "CIU")
+    quantile(s.in.f.store, probs = 0.975), quantile(s.out.f.store, probs = 0.975))), value.name = "CIU")
   trif.temp <- data.frame(Species = rep("Trifolium repens", nrow(trif.mean)), UniqueID = rep(as.numeric(trif$matchIn[m]), nrow(trif.mean)), Metric = rowNames, Mean = trif.mean, CIL = trif.CIL, CIU = trif.CIU)
   trif.meta <- rbind(trif.meta, trif.temp)
   print(paste("Network ", m, " is complete"))
@@ -367,28 +365,10 @@ for (m in 1:length(M.trif)) {
 # VISUALIZE RESULTS ------------------------------------------------------------
 # 
 sppCompare <- rbind(dact.meta, fest.meta, plan.meta, trif.meta)
-outStrength <- sppCompare[which(sppCompare$Metric == "out strength"), ]
-inStrength <- sppCompare[which(sppCompare$Metric == "in strength"), ]
-cOutStrength <- sppCompare[which(sppCompare$Metric == "comp out strength"), ]
-cInStrength <- sppCompare[which(sppCompare$Metric == "comp in strength"), ]
-fOutStrength <- sppCompare[which(sppCompare$Metric == "fac out strength"), ]
-fInStrength <- sppCompare[which(sppCompare$Metric == "fac in strength"), ]
 
-ggplot(outStrength, aes(x = Species, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(inStrength, aes(x = Species, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(cOutStrength, aes(x = Species, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(cInStrength, aes(x = Species, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(fOutStrength, aes(x = Species, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(fInStrength, aes(x = Species, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
 
-dactTab <- sppCompare[which(sppCompare$Species == "Dactylis glomerata"), ]
-festTab <- sppCompare[which(sppCompare$Species == "Festuca arundinacea"), ]
-planTab <- sppCompare[which(sppCompare$Species == "Plantago lanceolata"), ]
-trifTab <- sppCompare[which(sppCompare$Species == "Trifolium repens"), ]
+write.csv(x = sppCompare, file = "sppCompare.csv")
 
-ggplot(dactTab, aes(x = Metric, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(festTab, aes(x = Metric, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(planTab, aes(x = Metric, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
-ggplot(trifTab, aes(x = Metric, y = Mean)) + geom_point() + geom_errorbar(aes(ymax = CIU, ymin = CIL, width = 0.2))
+
 
 

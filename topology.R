@@ -59,7 +59,7 @@ metrics <- list(abs(weight), abs(s.in), abs(s.in.c), abs(s.in.f), abs(s.out), ab
 metrics <- lapply(metrics, function(x) x + 0.000000001)
 all.aicc <- matrix(data = NA, nrow = length(metrics), ncol = 5)
 colnames(all.aicc) <- c("Uniform", "Normal", "Lognormal", "Exponential", "PowerLaw")
-rownames(all.aicc) <- c("weight", "s", "s.in.c", "s.in.f", "s.out", "s.out.c", "s.out.f")
+rownames(all.aicc) <- c("weight", "s.in", "s.in.c", "s.in.f", "s.out", "s.out.c", "s.out.f")
 # param1 <- matrix(data = NA, nrow = length(metrics), ncol = 5)
 # colnames(param1) <- c("Uniform", "Normal", "Lognormal", "Exponential", "PowerLaw")
 # rownames(param1) <- c("weight", "s.in", "s.in.c", "s.in.f", "s.out", "s.out.c", "s.out.f")

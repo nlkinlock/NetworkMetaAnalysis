@@ -49,8 +49,8 @@ for (r in 1:length(M.treat)) {
 # empty data frames to store output for metrics
 # general metrics separate from distribution fit metrics
 metric.names <- c("strength", "comp_strength", "fac_strength", "weight", "connectance", "linkage_diversity", "r", "indirect_effect", "relative_intransitivity")
-treat.mean <- matrix(NA, nrow = length(M.all), ncol = length(metric.names))
-treat.sd <- matrix(NA, nrow = length(M.all), ncol = length(metric.names))
+treat.mean <- matrix(NA, nrow = length(M.treat), ncol = length(metric.names))
+treat.sd <- matrix(NA, nrow = length(M.treat), ncol = length(metric.names))
 colnames(treat.mean) <- metric.names
 colnames(treat.sd) <- metric.names
 aicc.treat <- data.frame(Metric = character(0), Distribution = character(0), freq = integer(0), Frequency = numeric(0), Case = character(0))
