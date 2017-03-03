@@ -13,22 +13,6 @@ library(ggplot2)
 # load data from MAIN.R
 # means (theta.hat) and variance (v) for each metric
 # metrics are columns in data frame, loop through columns and get the grand means
-# MA.mean <- data.frame(meta.dat.mean)
-# MA.var <- data.frame(meta.dat.sd^2)
-# load data from .csv
-# Cntrl
-# C.mean <- read.csv("meansRIICntrl.csv", row.names = 1)
-# C.var <- read.csv("sdsRIICntrl.csv", row.names = 1)
-# C.var <- C.var^2
-# K.var <- read.csv("sdsRIIKinlock.csv", row.names = 1)
-# K.var <- K.var^2
-# C.mean <- rbind(C.mean, K.mean)
-# C.var <- rbind(C.var, K.var)
-# MixMono
-# MA.mean <- read.csv("meansRIIMixMono.csv", row.names = 1)
-# MA.var <- read.csv("sdsRIIMixMono.csv", row.names = 1)
-# MA.var <- MA.var^2
-# Together
 C.mean <- read.csv("meansRIICntrl.csv", row.names = 1)
 C.var <- read.csv("sdsRIICntrl.csv", row.names = 1)
 C.var <- C.var^2
@@ -162,8 +146,6 @@ dat.tau <- rbind(dat.tau, dat.output[2, ])
 }
 
 dat.mu
-# write.csv(x = dat.mu, file = "overallmuMixMono.csv")
-# write.csv(x = dat.mu, file = "overallmuCntrl.csv")
 write.csv(x = dat.mu, file = "overallmu.csv")
 
 #
