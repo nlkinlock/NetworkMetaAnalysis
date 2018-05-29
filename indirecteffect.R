@@ -37,8 +37,8 @@ for (j in 1:ncol(M)) {  # outer loop is the species upon whom indirect effects a
 level3
 
 ind.eff <- level3
-mean.ind.eff <- mean(ind.eff)
-ratio.ind.eff <- length(which(ind.eff > 0)) / length(which(ind.eff < 0))
+mean.ind.eff <- mean(ind.eff) / nrow(M)
+
 
 
 

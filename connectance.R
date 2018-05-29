@@ -1,44 +1,34 @@
 # Measure connectance of plant interaction networks
 
-
 M.d <- M
-# diag(M.d) <- 1
 s <- nrow(M.d)
 
-inner <- c()
+inner1 <- c()
+inner2 <- c()
 H.in <- c()
+H.out <- c()
 for (j in 1:s) {
   for (i in 1:s) {
-    if (M.d[i, j] == 0) {
-      inner[i] <- 0
+    if (is.na(M.d[i, j]) | M.d[i, j] == 0) {
+      inner1[i] <- 0
     } else {
-    inner[i] <- -((abs(M.d[i, j]) / abs(s.in[j])) * log2(abs(M.d[i, j]) / abs(s.in[j])))
+      inner1[i] <- -((abs(M.d[i, j]) / abs(s.in[j])) * log2(abs(M.d[i, j]) / abs(s.in[j])))
+    } 
+    if (is.na(M.d[j, i]) | M.d[j, i] == 0) {
+      inner2[i] <- 0
+    } else {
+      inner2[i] <- -((abs(M.d[j, i]) / abs(s.out[j])) * log2(abs(M.d[j, i]) / abs(s.out[j])))
     }
   }
-  H.in[j] <- sum(inner)
+  H.in[j] <- sum(inner1)
+  H.out[j] <- sum(inner2)
 }
 H.in
-
-
-H.out <- c()
-for (i in 1:s) {
-  for (j in 1:s) {
-    if (M.d[i, j] == 0) {
-      inner[j] <- 0
-    } else {
-    inner[j] <- -((abs(M.d[i, j]) / abs(s.out[i])) * log2(abs(M.d[i, j]) / abs(s.out[i])))
-    }
-  }
-  H.out[i] <- sum(inner)
-}
 H.out
 
-a <- c()
-b <- c()
-for (i in 1:s) {
-  a[i] <- (abs(s.in[i]) / sum(abs(M))) * 2^(H.in[i])
-  b[i] <- (abs(s.out[i]) / sum(abs(M))) * 2^(H.out[i])
-}
+a <- (abs(s.in) / sum(abs(M), na.rm = TRUE)) * 2^(H.in)
+b <- (abs(s.out) / sum(abs(M), na.rm = TRUE)) * 2^(H.out)
+
 LD.qw <- 0.5 * (sum(a) + sum(b))
 LD.qw
 C.qw <- LD.qw / s

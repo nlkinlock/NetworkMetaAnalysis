@@ -1,16 +1,18 @@
-library(igraph)
-library(fitdistrplus)
-# library(poweRlaw)
-library(MuMIn)
-library(abind)
+#
+# CREATE DATA TABLE WITH PLANT PERFORMANCE METRIC AND VARIATION
+# SPECIAL CASE: 9998_Kinlock_unpubl (adult-seedling) and 9999_Kinlock_unpubl (seedling-seedling)
+#
+# set defaults, load packages ------------------------------------------------
+#
+
 library(reshape2)
 library(plyr)
 library(dplyr)
 
+#
+# load data, create data frame ------------------------------------------------
+#
 
-#
-# CALCULATE RII FROM BIOMASS ---------------------------------------
-#
 biomass <- read.csv("/Users/nicolekinlock/Documents/Plant Ecology/PlantInteractionFieldStudy/FinalSeedlingMeasurements.csv")
 biomass <- filter(biomass, X == "")  # remove cells with comments. these were cases where an individual was dead/dying.
 biomass <- biomass[, -c(1, 9)]  # remove oven and comment columns
@@ -22,142 +24,53 @@ str(biomass)
 ss <- filter(biomass, Experiment == "SS", Individual == "T")  # only studying targets
 ss <- filter(ss, Neighbor != "BT/RT" | is.na(Neighbor))  # remove 3 spp treatment
 ss <- ss[, -c(1, 5)]  # remove experiment and individual (target/neighbor) columns
-ss <- filter(ss, !(Target == "CR" & ss$Neighbor == "CR" & ss$Replicate == 1) | is.na(Neighbor))  # two entries for the same replicate, removing for now
-
-# iterations for bootstrap
-iterations <- 10000
-
-# separate out biomass from control (single individual) and mixtures/monocultures
-ss.mixmono <- filter(ss, !is.na(Neighbor))
-ss.mixmono <- as.data.frame(lapply(ss.mixmono, function (x) if (is.factor(x)) factor(x) else x))  # refactor after removing rows
-ss.contr <- filter(ss, is.na(Neighbor))
-ss.contr <- as.data.frame(lapply(ss.contr, function (x) if (is.factor(x)) factor(x) else x)) 
-
-# calculate RII
-# include variability in biomass by bootstrapping
-# sample from a normal distribution with a mean and sd equal to the mean/sd of the target/neighbor combination
-# store output in list
-species <- as.vector(levels(ss$Target))  # vector of the 7 spp
-RII.tab <- data.frame(Target = character(), Neighbor = character(), RII = numeric(), RIIsd = numeric(), stringsAsFactors = FALSE)
-RII <- c()
-for (i in 1:length(species)) {
-  for (j in 1:length(species)) {
-    for (k in 1:iterations) {
-      mixmono <- filter(ss.mixmono, Target == species[i] & Neighbor == species[j])
-      contr <- filter(ss.contr, Target == species[i])
-      Pmixmono <- sample(size = 1, x = mixmono$AbovegroundBiomass)
-      Pcontr <- sample(size = 1, x = contr$AbovegroundBiomass)
-      RII[k] <- (Pmixmono - Pcontr) / (Pmixmono + Pcontr)
-    }
-    RII.tab <- rbind(RII.tab, data.frame(Target = as.character(mixmono$Target[1]), Neighbor = as.character(mixmono$Neighbor[1]), RII = mean(RII), RIIsd = sd(RII)))
-    RII <- c()
-  }  
-}
-
-M.init <- matrix(RII.tab$RII, nrow = length(species), ncol = length(species), byrow = TRUE)
-M.sd.init <- matrix(RII.tab$RIIsd, nrow = length(species), ncol = length(species), byrow = TRUE)
-
+ss <- filter(ss, !(ss$Target == "CR" & ss$Neighbor == "CR" & ss$Replicate == 1) | is.na(Neighbor))  # two entries for the same replicate, removing for now
+# adult-seedling
+as <- filter(biomass, Experiment == "AS")  # only studying targets
+as <- as[, -c(1, 5)]  # remove experiment and individual (target/neighbor) columns
 
 #
-# CALCULATE NETWORK METRICS ------------------------------------------------------------
+# calculate mean and variation in performance ------------------------------------------------
 #
-# empty data frames to store output for metrics
-# general metrics separate from distribution fit metrics
-metric.names <- c("strength", "comp_strength", "fac_strength", "weight", "connectance", "linkage_diversity", "r", "indirect_effect", "relative_intransitivity")
-# meta.dat.mean <- matrix(NA, nrow = 1, ncol = length(metric.names))
-# meta.dat.sd <- matrix(NA, nrow = 1, ncol = length(metric.names))
-# colnames(meta.dat.mean) <- metric.names
-# colnames(meta.dat.sd) <- metric.names
-aicc.meta <- data.frame(Metric = character(0), Distribution = character(0), freq = integer(0), Frequency = numeric(0), Case = character(0))
+# seedling-seedling
+ss$Target <- as.numeric(factor(ss$Target))
+ss$Neighbor <- as.numeric(factor(ss$Neighbor))
+ss$Neighbor[is.na(ss$Neighbor)] <- 0
+# unique Target/Neighbor combination
+ss$UniqueID <- paste(ss$Target, ss$Neighbor, sep = "")
+# find mean target Biomass among Target/Neighbor combinations for calculating RII
+dat.ss <- ddply(ss, .(UniqueID), summarise, SD = sd(AbovegroundBiomass, na.rm = TRUE), Metric = mean(AbovegroundBiomass, na.rm = TRUE), N = length(UniqueID))
+# add target and neighbor IDs 
+tn <- str_split_fixed(dat.ss$UniqueID, "", 2)
+dat.ss$Target <- as.numeric(tn[, 1])
+dat.ss$Neighbor <- as.numeric(tn[, 2])
+# impute SDs
+replace <- dat.ss[which(is.na(dat.ss$SD)), ]
+nonmissing <- dat.ss[which(!is.na(dat.ss$SD)), ]
+dat.ss[which(is.na(dat.ss$SD)), "SD"] <- sample(nonmissing$SD, size = nrow(replace), replace = TRUE)
 
-setwd("/Users/nicolekinlock/Documents/Plant Ecology/NetworkMetaAnalysis")
+# adult-seedling
+as$Target <- as.numeric(factor(as$Target, levels = c("BT", "CR", "EU", "PS", "RM", "RO", "RT")))
+as$Neighbor <- as.numeric(factor(as$Neighbor, levels = c("BT", "CR", "EU", "PS", "RM", "RO", "RT")))
+as$Neighbor[is.na(as$Neighbor)] <- 0
+as$UniqueID <- paste(as$Target, as$Neighbor, sep = "")
+dat.as <- ddply(as, .(UniqueID), summarise, SD = sd(AbovegroundBiomass, na.rm = TRUE), Metric = mean(AbovegroundBiomass, na.rm = TRUE), N = length(UniqueID))
 
-  # initialize temp vectors to store output for a given network
-  # s.store <- numeric(length = iterations)
-  # s.c.store <- numeric(length = iterations)
-  # s.f.store <- numeric(length = iterations)
-  # weight.store <- numeric(length = iterations)
-  # C.qw.store <- numeric(length = iterations)
-  # LD.qw.store <- numeric(length = iterations)
-  # r.intrans.store <- numeric(length = iterations)
-  # r.store <- numeric(length = iterations)
-  # ind.eff.store <- numeric(length = iterations)
-  aicc.store <- data.frame(Metric = character(0), Distribution = character(0), AICc = numeric(0), Iteration = integer(0))
-  for (count in 1:iterations) {
-    # nested loop for bootstrap
-    # incorporate variability using sd of network elements
-    mean.matrix <- t(M.init)
-    sd.matrix <- t(M.sd.init)
-    if (any(sd.matrix == 0)) {
-      sd.matrix <- sd.matrix + 1E-9
-    }
-    M <- matrix(mapply(rnorm, 1, mean.matrix, sd.matrix), nrow = nrow(mean.matrix), ncol = ncol(mean.matrix))
-    M[which(abs(M) <= 1E-9, arr.ind = TRUE)] <- 0
-    # node characteristics (weight, in/out strength) and distribution fits
-    source(file = "topology.R")
-    # s.store[count] <- mean.s
-    # s.c.store[count] <- mean.s.c
-    # s.f.store[count] <- mean.s.f
-    # weight.store[count] <- mean.weight
-    aicc.store <- rbind(aicc.store, all.aicc)
-    # # connectance and linkage density
-    # source(file = "connectance.R")
-    # C.qw.store[count] <- C.qw
-    # LD.qw.store[count] <- LD.qw
-    # # relative intransitivity
-    # source(file = "transitivity.R")
-    # r.intrans.store[count] <- r.intrans
-    # # asymmetry (correlation coefficient r)
-    # source(file = "asymmetry.R")
-    # r.store[count] <- r
-    # # indirect effect
-    # source(file = "indirecteffect.R")
-    # ind.eff.store[count] <- mean.ind.eff
-  }
-  # add output from one network to data frame with all networks
-  # meta.dat.table <- data.frame(s.store, s.c.store, s.f.store, weight.store, C.qw.store, LD.qw.store, r.store, ind.eff.store, r.intrans.store)
-  # # fit bootstrapped distribution of each metric to a normal to get mu and sigma
-  # fit <- apply(meta.dat.table, 2, function(x) fitdist(data = x, distr = "norm", method = "mme"))
-  # mean.vec <- numeric(length = length(fit))
-  # sd.vec <- numeric(length = length(fit))
-  # for (w in 1:length(fit)) {
-  #   mean.vec[w] <- unname(fit[[w]][[1]][1])
-  #   sd.vec[w] <- unname(fit[[w]][[1]][2])
-  # }
-  # meta.dat.mean <- mean.vec
-  # meta.dat.sd <- sd.vec
-  # names(meta.dat.mean) <- metric.names
-  # names(meta.dat.sd) <- metric.names
+tn <- str_split_fixed(dat.as$UniqueID, "", 2)
+dat.as$Target <- as.numeric(tn[, 1])
+dat.as$Neighbor <- as.numeric(tn[, 2])
 
-  
-  # hist(s.out.store)
-  # hist(s.in.store)
-  # hist(s.in.c.store)
-  # hist(s.out.c.store)
-  # hist(s.in.f.store)
-  # hist(s.out.f.store)
-  # hist(weight.store)
-  # hist(C.qw.store)
-  # hist(LD.qw.store)
-  # hist(r.intrans.store)
-  # hist(r.store)
-  # hist(ind.eff.store)
-  # hist(ratio.ind.eff.store)
-  
-  # convert output from distribution fits (in list)
-  
-  aicc.store$Metric <- factor(aicc.store$Metric, levels = c("weight", "s", "s.in.c", "s.in.f", "s.out", "s.out.c", "s.out.f"))
-  aicc.store$Distribution <- factor(aicc.store$Distribution, levels = c("Uniform", "Normal", "Lognormal", "Exponential", "PowerLaw"))
-  aicc.output <- count(aicc.store, c("Metric", "Distribution"))
-  aicc.output$Frequency <- aicc.output$freq / iterations
-  aicc.output$Case <- rep(c("Kinlock-2016"), nrow(aicc.output))
-  colnames(aicc.output) <- c("Metric", "Distribution", "freq", "Frequency", "Case")
-  aicc.output
+replace <- dat.as[which(is.na(dat.as$SD)), ]
+nonmissing <- dat.as[which(!is.na(dat.as$SD)), ]
+dat.as[which(is.na(dat.as$SD)), "SD"] <- sample(nonmissing$SD, size = nrow(replace), replace = TRUE)
+dat.as <- rbind(dat.as, c(33, 0, 0, 0, 3, 3))
 
+#
+# save data tables ------------------------------------------------
+#
 
-# write.csv(x = meta.dat.mean, file = "meansRIIKinlock.csv")
-# write.csv(x = meta.dat.sd, file = "sdsRIIKinlock.csv")
-write.csv(x = aicc.output, file = "distributionsRIIKinlock.csv")
+write.table(x = dat.as, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Biomass/Cntrl/9998_Kinlock_unpubl.csv", sep = ",", row.names = FALSE)
+write.table(x = dat.ss, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Biomass/Cntrl/9999_Kinlock_unpubl.csv", sep = ",", row.names = FALSE)
 
 
 
