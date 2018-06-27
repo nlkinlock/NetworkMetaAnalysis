@@ -124,20 +124,36 @@ for (a in 1:length(metrics.ma)) {
 
 MA.binom.networks <- MA.binom[which(MA.binom$network != "All"), ]
 rownames(MA.binom.networks) <- 1:nrow(MA.binom.networks)
-MA.binom.all <- MA.binom[which(MA.binom$network == "All"), ]
-MA.binom.all$n <- NULL
-MA.binom.all[which(MA.binom.all$param == "sigma" | MA.binom.all$param == "mu" | MA.binom.all$param == "Q"), "n"] <- net.num
-MA.binom.all[which(MA.binom.all$param == "True ctrl"), "n"] <- 13
-MA.binom.all[which(MA.binom.all$param == "Mono ctrl"), "n"] <- 17
-MA.binom.all[which(MA.binom.all$param == "Grassland"), "n"] <- 19
-MA.binom.all[which(MA.binom.all$param == "Other"), "n"] <- 11
-MA.binom.all[which(MA.binom.all$param == "Greenhouse"), "n"] <- 12
-MA.binom.all[which(MA.binom.all$param == "Field"), "n"] <- 7
-MA.binom.all[which(MA.binom.all$param == "Garden"), "n"] <- 12
-MA.binom.all[which(MA.binom.all$param == "Herbaceous"), "n"] <- 23
-MA.binom.all[which(MA.binom.all$param == "Woody"), "n"] <- 9
-MA.binom.all[which(MA.binom.all$param == "Juvenile"), "n"] <- 25
-MA.binom.all[which(MA.binom.all$param == "Adult"), "n"] <- 7
+MA.binom.con <- MA.binom[which(MA.binom$network == "All" & MA.binom$metric == "connect"), ]
+MA.binom.con$n <- NULL
+MA.binom.con[which(MA.binom.con$param == "sigma" | MA.binom.con$param == "mu" | MA.binom.con$param == "Q"), "n"] <- net.num
+MA.binom.con[which(MA.binom.con$param == "True ctrl"), "n"] <- 13
+MA.binom.con[which(MA.binom.con$param == "Mono ctrl"), "n"] <- 17
+MA.binom.con[which(MA.binom.con$param == "Grassland"), "n"] <- 19
+MA.binom.con[which(MA.binom.con$param == "Other"), "n"] <- 11
+MA.binom.con[which(MA.binom.con$param == "Greenhouse"), "n"] <- 12
+MA.binom.con[which(MA.binom.con$param == "Field"), "n"] <- 7
+MA.binom.con[which(MA.binom.con$param == "Garden"), "n"] <- 12
+MA.binom.con[which(MA.binom.con$param == "Herbaceous"), "n"] <- 23
+MA.binom.con[which(MA.binom.con$param == "Woody"), "n"] <- 9
+MA.binom.con[which(MA.binom.con$param == "Juvenile"), "n"] <- 25
+MA.binom.con[which(MA.binom.con$param == "Adult"), "n"] <- 7
+MA.binom.ri<- MA.binom[which(MA.binom$network == "All" & MA.binom$metric == "RI"), ]
+MA.binom.ri$n <- NULL
+MA.binom.ri[which(MA.binom.ri$param == "sigma" | MA.binom.ri$param == "mu" | MA.binom.ri$param == "Q"), "n"] <- net.num - 1
+MA.binom.ri[which(MA.binom.ri$param == "True ctrl"), "n"] <- 12
+MA.binom.ri[which(MA.binom.ri$param == "Mono ctrl"), "n"] <- 17
+MA.binom.ri[which(MA.binom.ri$param == "Grassland"), "n"] <- 19
+MA.binom.ri[which(MA.binom.ri$param == "Other"), "n"] <- 10
+MA.binom.ri[which(MA.binom.ri$param == "Greenhouse"), "n"] <- 12
+MA.binom.ri[which(MA.binom.ri$param == "Field"), "n"] <- 7
+MA.binom.ri[which(MA.binom.ri$param == "Garden"), "n"] <- 11
+MA.binom.ri[which(MA.binom.ri$param == "Herbaceous"), "n"] <- 23
+MA.binom.ri[which(MA.binom.ri$param == "Woody"), "n"] <- 8
+MA.binom.ri[which(MA.binom.ri$param == "Juvenile"), "n"] <- 25
+MA.binom.ri[which(MA.binom.ri$param == "Adult"), "n"] <- 6
+
+MA.binom.all <- rbind(MA.binom.con, MA.binom.ri)
 MA.binom.all <- MA.binom.all[, -4]
 rownames(MA.binom.all) <- 1:nrow(MA.binom.all)
 write.csv(x = MA.binom.networks, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_networks_binom.csv")

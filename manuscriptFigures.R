@@ -5,13 +5,13 @@
 # inputs for figure params
 #
 # set file type, 1 = eps, other = tiff
-file.type <- 1
+file.type <- 2
 # function to set limits given min and max
 lim.func <- function(df) {
   range.lim <- abs(max(df$CI.u, na.rm = TRUE) - min(df$CI.l, na.rm = TRUE))
   min.lim <- min(df$CI.l, na.rm = TRUE) - (0.1 * range.lim)
   max.lim <- max(df$CI.u, na.rm = TRUE) + (0.2 * range.lim)
-  lab.lim <- max(df$CI.u, na.rm = TRUE) + (0.1 * range.lim)
+  lab.lim <- max(df$CI.u, na.rm = TRUE) + (0.03 * range.lim)
   return(c(min.lim, max.lim, lab.lim))
 }
 lim.func.for <- function(df) {
@@ -21,15 +21,14 @@ lim.func.for <- function(df) {
   return(c(min.lim, max.lim))
 }
 # height and width of saved EPS files for meta-analysis results (.ma), forest plots (.fp), and model-selection distributions (.ms)
-width.ma <- 3.5
-height.ma <- 5
-width.fp <- 5
-height.fp <- 5
+width.plot <- 7.5
+height.plot <- 5
 width.ms <- 7
 height.ms <- 6
 # toggle sizes, shapes, and line widths for .ma .fp and .ms
 ma.sizes <- c(5, 2, 2, 2, 2, 2)
 ma.shapes <- c(18, 19, 19, 19, 19, 19)
+ma.scale <- seq(-5, 5, by = 0.2)
 ma.text <- 2.75
 ma.lwd <- 0.6
 ma.theme <- theme(legend.title = element_blank(), legend.text = element_text(size = 12), legend.position = "none", 
@@ -38,6 +37,7 @@ ma.theme <- theme(legend.title = element_blank(), legend.text = element_text(siz
       panel.background = element_blank(), panel.spacing = unit(0.4, "cm"))
 fp.lwd <- 0.6
 fp.shape <- c(19, 15)
+fp.scale <- seq(-10, 10, by = 0.2)
 fp.theme <- theme(legend.title = element_blank(), legend.text = element_text(size = 12), legend.position = "none", 
       axis.text.y = element_text(size = 9), axis.text.x = element_text(size = 10), axis.title = element_text(size = 12), 
       axis.line = element_line(size = 0.5))
@@ -57,14 +57,14 @@ tiff.res <- 600
 # estimates by network (for forest plots)
 # meta-analytic data (grand means and groups)
 final.df <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/codingtable_metrics.csv", row.names = 1)
-final.df$network <- factor(final.df$network, levels = c("Sangakkara and Roberts 1985", "Miller and Werner 1987", "Bush and Van Auken 2004", "Frerot et al. 2006",
-                                                    "Chacon and Munoz 2007", "Dehlin et al. 2008", "Engel and Weltzin 2008", "Niu and Wan 2008", 
-                                                    "Pfeifer-Meister et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
-                                                    "Amanullah 2013", "Pausch et al. 2013", "Jiang et al. 2014", "Cuda et al. 2015", 
-                                                    "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg and Landa 1991", "Weigelt et al. 2002",
-                                                    "Costa et al. 2003", "Hedberg et al. 2005", "Fortner and Weltzin 2007", "Domenech and Vila 2008",
-                                                    "Svenning et al. 2008", "Saccone et al. 2010", "Armas and Pugnaire 2011", "Farrer and Goldberg 2011",
-                                                    "Gao et al. 2014", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
+final.df$network <- factor(final.df$network, levels = rev(c("Sangakk. & Roberts 1985", "Miller & Werner 1987", "Bush & Van Auken 2004", "Frérot et al. 2006",
+                                                    "Chacón & Muñoz 2007", "Dehlin et al. 2008", "Engel & Weltzin 2008", "Niu & Wan 2008", 
+                                                    "Pfeifer-Meis. et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
+                                                    "Amanull. & Stewart 2013", "Pausch et al. 2013", "Jiang et al. 2014", "Čuda et al. 2015", 
+                                                    "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg & Landa 1991", "Weigelt et al. 2002",
+                                                    "Costa et al. 2003", "Hedberg et al. 2005", "Fortner & Weltzin 2007", "Domènech & Vilà 2008",
+                                                    "Svenning et al. 2008", "Saccone et al. 2010", "Armas & Pugnaire 2011", "Farrer & Goldberg 2011",
+                                                    "Gao et al. 2014", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished")))
 meta <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_output.csv", row.names = 1)
 meta$comparison <- factor(meta$comparison, levels = c("Grand mean", "Exp type", "Setting", "Habitat", "Habit", "Age"))
 meta$param <- factor(meta$param, levels = c("mu", "sigma", "Q", "True ctrl", "Mono ctrl", "Other", "Grassland", "Field", "Garden", "Greenhouse", "Woody", "Herbaceous", "Adult", "Juvenile"))
@@ -76,22 +76,22 @@ df.w <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/weight_dist
 df.is <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/instr_distsamples.csv", row.names = 1)
 df.os <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/outstr_distsamples.csv", row.names = 1)
 df.w$Distribution <- factor(df.w$Distribution, levels = c("Data", "Normal", "Exponential", "Lognormal",  "Pareto"))
-df.w$Case <- factor(df.w$Case, levels = c("Sangakkara and Roberts 1985", "Miller and Werner 1987", "Bush and Van Auken 2004", "Frerot et al. 2006",
-                                                    "Chacon and Munoz 2007", "Dehlin et al. 2008", "Engel and Weltzin 2008", "Niu and Wan 2008", 
-                                                    "Pfeifer-Meister et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
-                                                    "Amanullah 2013", "Pausch et al. 2013", "Jiang et al. 2014", "Cuda et al. 2015", 
-                                                    "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg and Landa 1991", "Weigelt et al. 2002",
-                                                    "Costa et al. 2003", "Hedberg et al. 2005", "Fortner and Weltzin 2007", "Domenech and Vila 2008",
-                                                    "Svenning et al. 2008", "Saccone et al. 2010", "Armas and Pugnaire 2011", "Farrer and Goldberg 2011",
-                                                    "Gao et al. 2014", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
+df.w$Case <- factor(df.w$Case, levels = c("Sangakk. & Roberts 1985", "Miller & Werner 1987", "Bush & Van Auken 2004", "Frérot et al. 2006",
+                                                    "Chacón & Muñoz 2007", "Dehlin et al. 2008", "Engel & Weltzin 2008", "Niu & Wan 2008", 
+                                                    "Pfeifer-Meis. et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
+                                                    "Amanull. & Stewart 2013", "Pausch et al. 2013", "Jiang et al. 2014", "Čuda et al. 2015", 
+                                                    "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg & Landa 1991", "Weigelt et al. 2002",
+                                                    "Costa et al. 2003", "Hedberg et al. 2005", "Fortner & Weltzin 2007", "Domènech & Vilà 2008",
+                                                    "Svenning et al. 2008", "Saccone et al. 2010", "Armas & Pugnaire 2011", "Farrer & Goldberg 2011",
+                                                    "Gao et al. 2014", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished"))
 df.is$Distribution <- factor(df.is$Distribution, levels = c("Data", "Normal", "Exponential", "Lognormal", "Pareto"))
-df.is$Case <- factor(df.is$Case, levels = c("Miller and Werner 1987", "Engel and Weltzin 2008", "Niu and Wan 2008", "Mariotte et al. 2012",
-                                                    "Jiang et al. 2014", "Goldberg and Landa 1991", "Svenning et al. 2008",
-                                                    "Armas and Pugnaire 2011", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
+df.is$Case <- factor(df.is$Case, levels = c("Miller & Werner 1987", "Engel & Weltzin 2008", "Niu & Wan 2008", "Mariotte et al. 2012",
+                                                    "Jiang et al. 2014", "Goldberg & Landa 1991", "Svenning et al. 2008",
+                                                    "Armas & Pugnaire 2011", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished"))
 df.os$Distribution <- factor(df.os$Distribution, levels = c("Data", "Normal", "Exponential", "Lognormal", "Pareto"))
-df.os$Case <- factor(df.os$Case, levels = c("Miller and Werner 1987", "Engel and Weltzin 2008", "Niu and Wan 2008", "Mariotte et al. 2012",
-                                            "Jiang et al. 2014", "Goldberg and Landa 1991", "Svenning et al. 2008",
-                                            "Armas and Pugnaire 2011", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
+df.os$Case <- factor(df.os$Case, levels = c("Miller & Werner 1987", "Engel & Weltzin 2008", "Niu & Wan 2008", "Mariotte et al. 2012",
+                                            "Jiang et al. 2014", "Goldberg & Landa 1991", "Svenning et al. 2008",
+                                            "Armas & Pugnaire 2011", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished"))
 
 # pca scores and loadings
 df.scores <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/pca_scores.csv", row.names = 1)
@@ -103,11 +103,11 @@ df.char$comparison <- factor(df.char$comparison, levels = c("Invasive status", "
 
 # comparing spp. position
 df.spp <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/species_position.csv", row.names = 1)
-levels(df.spp$network) <- c("Sangakkara and Roberts 1985", "Gurevitch et al. 1990", "Mariotte et al. 2012", 
-                            "Fortner and Weltzin 2007", "Hendriks et al. 2015", "Miller and Werner 1987", 
-                            "Engel and Weltzin 2008", "Goldberg and Landa 1991")
-df.spp$network <- factor(df.spp$network, levels = c("Sangakkara and Roberts 1985", "Miller and Werner 1987", "Engel and Weltzin 2008", "Mariotte et al. 2012",
-                                                    "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg and Landa 1991", "Fortner and Weltzin 2007"))
+levels(df.spp$network) <- c("Sangakk. & Roberts 1985", "Gurevitch et al. 1990", "Mariotte et al. 2012", 
+                            "Fortner & Weltzin 2007", "Hendriks et al. 2015", "Miller & Werner 1987", 
+                            "Engel & Weltzin 2008", "Goldberg & Landa 1991")
+df.spp$network <- factor(df.spp$network, levels = c("Sangakk. & Roberts 1985", "Miller & Werner 1987", "Engel & Weltzin 2008", "Mariotte et al. 2012",
+                                                    "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg & Landa 1991", "Fortner & Weltzin 2007"))
 levels(df.spp$species) <- c("Dactylis glomerata", "Plantago lanceolata", "Trifolium repens")
 
 # comparing metrics from networks wth treatment/control
@@ -118,8 +118,8 @@ df.treat$metric <- factor(df.treat$metric, levels = c("strength", "ind eff", "as
 # comparing standardized differences in RII in pairwise and 3 spp. combinations
 df.add <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/additivity.csv", row.names = 1)
 df.add$param <- factor(df.add$param, levels = c("grand mean", "group mean", "among-group sd", "within-group sd"))
-levels(df.add$network) <- c("Baude et al. 2011", "Pausch et al. 2013", "Marty et al. 2009", "Frerot et al. 2006", "All")
-df.add$network <- factor(df.add$network, levels = c("All", "Frerot et al. 2006", "Marty et al. 2009", "Baude et al. 2011", "Pausch et al. 2013"))
+levels(df.add$network) <- c("Baude et al. 2011", "Pausch et al. 2013", "Marty et al. 2009", "Frérot et al. 2006", "All")
+df.add$network <- factor(df.add$network, levels = c("All", "Frérot et al. 2006", "Marty et al. 2009", "Baude et al. 2011", "Pausch et al. 2013"))
 
 world <- map_data("world")
 worldmap <- ggplot() + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "gray95", color = "gray65", size = 0.2) + coord_fixed(1.3) + 
@@ -138,102 +138,76 @@ dev.off()
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
 # mean strength
-sub.df <- meta[which(meta$metric == "strength" & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
-df.lim <- lim.func(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/StrengthResults.eps", width = width.ma, height = height.ma)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/StrengthResults.tiff", res = tiff.res, units = "in", width = width.ma, height = height.ma)
-  
-}
-ggplot(data = sub.df) + facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
+str.df <- meta[which(meta$metric == "strength" & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
+str.df.lim <- lim.func(str.df)
+strength <- ggplot(data = str.df) + facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = ma.lwd) + 
   geom_errorbar(aes(x = param, ymin = CI.l, ymax = CI.u), width = 0.2, size = ma.lwd) + 
   geom_point(aes(x = param, y = est, shape = comparison, size = comparison)) + 
-  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = df.lim[3]), size = ma.text) +
-  coord_flip(ylim = c(df.lim[1], df.lim[2])) +  
+  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = str.df.lim[3]), size = ma.text, hjust = 0, vjust = 0.5, fontface = "italic") +
+  coord_flip(ylim = c(str.df.lim[1], str.df.lim[2])) + 
+  scale_y_continuous(breaks = ma.scale) + 
   scale_shape_manual(values = ma.shapes, guide = FALSE) +
   scale_size_manual(values = ma.sizes, guide = FALSE) +
   labs(x = "", y = "Mean strength") + theme_classic() + ma.theme
-dev.off()
 
 # indirect effect
-sub.df <- meta[which(meta$metric == "ind eff" & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
-df.lim <- lim.func(sub.df)
-if (file.type == 1) {
-postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/IndEffResults.eps", width = width.ma, height = height.ma)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/IndEffResults.tiff", res = tiff.res, units = "in", width = width.ma, height = height.ma)
-}
-ggplot(data = sub.df) + facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
+ind.df <- meta[which(meta$metric == "ind eff" & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
+ind.df.lim <- lim.func(ind.df)
+ind.eff <- ggplot(data = ind.df) + facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = ma.lwd) + 
   geom_errorbar(aes(x = param, ymin = CI.l, ymax = CI.u), width = 0.2, size = ma.lwd) + 
   geom_point(aes(x = param, y = est, shape = comparison, size = comparison)) + 
-  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = df.lim[3]), size = ma.text) +
-  coord_flip(ylim = c(df.lim[1], df.lim[2])) + 
+  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = ind.df.lim[3]), size = ma.text, hjust = 0, vjust = 0.5, fontface = "italic") +
+  coord_flip(ylim = c(ind.df.lim[1], ind.df.lim[2])) + 
+  scale_y_continuous(breaks = seq(-5, 5, 0.4)) + 
   scale_shape_manual(values = ma.shapes, guide = FALSE) +
   scale_size_manual(values = ma.sizes, guide = FALSE) +
-  labs(x = "", y = "Mean weighted strength (WI2)") + theme_classic() + ma.theme
-dev.off()
+  labs(x = "", y = "Mean indirect effect") + theme_classic() + ma.theme
 
 # asymmetry difference
-sub.df <- meta[which(meta$metric == "asymm" & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
-df.lim <- lim.func(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/AsymmetryDiffResults.eps", width = width.ma, height = height.ma)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/AsymmetryDiffResults.tiff", res = tiff.res, units = "in", width = width.ma, height = height.ma)
-}
-ggplot(data = sub.df)  + facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
+asym.df <- meta[which(meta$metric == "asymm" & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
+asym.df.lim <- lim.func(asym.df)
+asymm <- ggplot(data = asym.df)  + facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = ma.lwd) + 
   geom_errorbar(aes(x = param, ymin = CI.l, ymax = CI.u), width = 0.2, size = ma.lwd) + 
   geom_point(aes(x = param, y = est, shape = comparison, size = comparison)) + 
-  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = df.lim[3]), size = ma.text) +
-  coord_flip(ylim = c(df.lim[1], df.lim[2])) + 
+  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = asym.df.lim[3]), size = ma.text, hjust = 0, vjust = 0.5, fontface = "italic") +
+  coord_flip(ylim = c(asym.df.lim[1], asym.df.lim[2])) + 
+  scale_y_continuous(breaks = ma.scale) + 
   scale_shape_manual(values = ma.shapes, guide = FALSE) +
   scale_size_manual(values = ma.sizes, guide = FALSE) +
   labs(x = "", y = "Interaction asymmetry") + theme_classic() + ma.theme
-dev.off()
 
 # transitivity
-sub.df <- meta[which(meta$metric == "RI"  & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
-df.lim <- lim.func(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/TransitivityResults.eps", width = width.ma, height = height.ma)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/TransitivityResults.tiff", res = tiff.res, units = "in", width = width.ma, height = height.ma)
-}
-ggplot(data = sub.df) + 
+ri.df <- meta[which(meta$metric == "RI"  & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
+ri.df.lim <- lim.func(ri.df)
+rel.int <- ggplot(data = ri.df) + 
   facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = ma.lwd) + 
   geom_errorbar(aes(x = param, ymin = CI.l, ymax = CI.u), width = 0.2, size = ma.lwd, position = pd) + 
   geom_point(aes(x = param, y = est, size = comparison, shape = comparison), position = pd) + 
-  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = df.lim[3]), size = ma.text) +
+  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = ri.df.lim[3]), size = ma.text, hjust = 0, vjust = 0.5, fontface = "italic") +
+  scale_y_continuous(breaks = ma.scale) + 
   scale_shape_manual(values = ma.shapes, guide = FALSE) +
   scale_size_manual(values = ma.sizes, guide = FALSE) +
-  coord_flip(ylim = c(df.lim[1], df.lim[2])) + 
+  coord_flip(ylim = c(ri.df.lim[1], ri.df.lim[2])) + 
   labs(x = "", y = "Relative intransitivity") + theme_classic() + ma.theme
-dev.off()
 
 # connectance
-sub.df <- meta[which(meta$metric == "connect"  & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
-df.lim <- lim.func(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/ConnectanceResults.eps", width = width.ma, height = height.ma)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/ConnectanceResults.tiff", res = tiff.res, units = "in", width = width.ma, height = height.ma)
-}
-ggplot(data = sub.df) + 
+con.df <- meta[which(meta$metric == "connect"  & meta$param != "sigma" & meta$param != "Q"  & meta$param != "tau"), ]
+con.df.lim <- lim.func(con.df)
+connect <- ggplot(data = con.df) + 
   facet_grid(comparison ~ ., switch = "y", scales = "free", space = "free") +
   geom_hline(yintercept = 0, color = gray.hex, size = ma.lwd) + 
   geom_errorbar(aes(x = param, ymin = CI.l, ymax = CI.u), width = 0.2, size = ma.lwd) + 
   geom_point(aes(x = param, y = est, size = comparison, shape = comparison)) + 
-  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = df.lim[3]), size = ma.text) +
+  geom_text(aes(label = paste("n = ", n, sep = ""), x = param, y = con.df.lim[3]), size = ma.text, hjust = 0, vjust = 0.5, fontface = "italic") +
+  scale_y_continuous(breaks = ma.scale) + 
   scale_shape_manual(values = ma.shapes, guide = FALSE) +
   scale_size_manual(values = ma.sizes, guide = FALSE) +
-  coord_flip(ylim = c(df.lim[1], df.lim[2])) + 
+  coord_flip(ylim = c(con.df.lim[1], con.df.lim[2])) + 
   labs(x = "", y = "Weighted connectance") + theme_classic() + ma.theme
-dev.off()
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -241,85 +215,94 @@ dev.off()
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
 # strength
-sub.df <- final.df[which(final.df$metric == "strength"), ]
-df.lim <- lim.func.for(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/StrengthForest.eps", width = width.fp, height = height.fp)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/StrengthForest.tiff", res = tiff.res, units = "in", width = width.fp, height = height.fp)
-}
-ggplot(data = sub.df) + 
+str.for.df <- final.df[which(final.df$metric == "strength"), ]
+str.for.df.lim <- lim.func.for(str.for.df)
+strength.forest <- ggplot(data = str.for.df) + 
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = fp.lwd) + 
   geom_errorbar(aes(x = network, ymin = CI.l.post, ymax = CI.u.post), width = 0.3, size = fp.lwd) + 
   geom_point(aes(x = network, y = est.post, shape = CtrlTreatment)) + 
   labs(x = "", y = "Mean strength") + theme_classic() + 
   scale_shape_manual(values = fp.shape) + fp.theme +
-  scale_y_continuous(limits = c(df.lim[1], df.lim[2])) + coord_flip()
+  scale_y_continuous(breaks = fp.scale, limits = c(str.for.df.lim[1], str.for.df.lim[2])) + coord_flip()
+if (file.type == 1) {
+  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Strength.eps", horizontal = FALSE, onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+} else {
+  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Strength.tiff", res = tiff.res, units = "in", width = width.plot, height = height.plot)
+}
+plot_grid(strength, strength.forest, align = "h", axis = "b",labels = c("a", "b"), rel_widths = c(3, 4))
 dev.off()
 
 # indirect effect
-sub.df <- final.df[which(final.df$metric == "ind eff"), ]
-df.lim <- lim.func.for(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/IndEffForest.eps", width = width.fp, height = height.fp)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/IndEffForest.tiff", res = tiff.res, units = "in", width = width.fp, height = height.fp)
-}
-ggplot(data = sub.df) + 
+ind.for.df <- final.df[which(final.df$metric == "ind eff"), ]
+ind.for.df.lim <- lim.func.for(ind.for.df)
+ind.eff.forest <- ggplot(data = ind.for.df) + 
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = fp.lwd) + 
   geom_errorbar(aes(x = network, ymin = CI.l.post, ymax = CI.u.post), width = 0.3, size = fp.lwd) + 
   geom_point(aes(x = network, y = est.post, shape = CtrlTreatment)) + 
-  labs(x = "", y = "Mean weighted strength (WI2)") + theme_classic() + fp.theme + 
-  scale_shape_manual(values = fp.shape) + scale_y_continuous(limits = c(df.lim[1], df.lim[2])) + coord_flip()
+  labs(x = "", y = "Mean indirect effect") + theme_classic() + fp.theme + 
+  scale_shape_manual(values = fp.shape) + 
+  scale_y_continuous(limits = c(ind.for.df.lim[1], ind.for.df.lim[2])) + coord_flip()
+if (file.type == 1) {
+  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/IndEff.eps", horizontal = FALSE, onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+} else {
+  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/IndEff.tiff", res = tiff.res, units = "in", width = width.plot, height = height.plot)
+}
+plot_grid(ind.eff, ind.eff.forest, align = "h", axis = "b",labels = c("a", "b"), rel_widths = c(2, 3))
 dev.off()
 
 # asymmetry difference
-sub.df <- final.df[which(final.df$metric == "asymm"), ]
-df.lim <- lim.func.for(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/AsymmetryDiffForest.eps", width = width.fp, height = height.fp)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/AsymmetryDiffForest.tiff", res = tiff.res, units = "in", width = width.fp, height = height.fp)
-}
-ggplot(data = sub.df) + 
+asym.for.df <- final.df[which(final.df$metric == "asymm"), ]
+asym.for.df.lim <- lim.func.for(asym.for.df)
+asymm.forest <- ggplot(data = asym.for.df) + 
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = fp.lwd) + 
   geom_errorbar(aes(x = network, ymin = CI.l.post, ymax = CI.u.post), width = 0.3, size = fp.lwd) + 
   geom_point(aes(x = network, y = est.post, shape = CtrlTreatment)) + 
   labs(x = "", y = "Interaction asymmetry") + theme_classic() + fp.theme +
-  scale_shape_manual(values = c(19, 15)) + scale_y_continuous(limits = c(df.lim[1], df.lim[2])) + 
+  scale_shape_manual(values = c(19, 15)) + 
+  scale_y_continuous(limits = c(asym.for.df.lim[1], asym.for.df.lim[2])) + 
   coord_flip()
+if (file.type == 1) {
+  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Asymmetry.eps", horizontal = FALSE, onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+} else {
+  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Asymmetry.tiff", res = tiff.res, units = "in", width = width.plot, height = height.plot)
+}
+plot_grid(asymm, asymm.forest, align = "h", axis = "b",labels = c("a", "b"), rel_widths = c(2, 3))
 dev.off()
 
 #transitivity
-sub.df <- final.df[which(final.df$metric == "RI"), ]
-df.lim <- lim.func.for(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/TransitivityForest.eps", width = width.fp, height = height.fp)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/TransitivityForest.tiff", res = tiff.res, units = "in", width = width.fp, height = height.fp)
-}
-ggplot(data = sub.df) + 
+ri.for.df <- final.df[which(final.df$metric == "RI"), ]
+ri.for.df.lim <- lim.func.for(ri.for.df)
+rel.int.forest <- ggplot(data = ri.for.df) + 
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = fp.lwd) + 
   geom_errorbar(aes(x = network, ymin = CI.l.post, ymax = CI.u.post), width = 0.3, size = fp.lwd) + 
   geom_point(aes(x = network, y = est.post, shape = CtrlTreatment)) + 
   labs(x = "", y = "Relative intransitivity") + theme_classic() + fp.theme +
-  scale_shape_manual(values = fp.shape) + scale_y_continuous(limits = c(df.lim[1], df.lim[2])) + coord_flip()
+  scale_shape_manual(values = fp.shape) + 
+  scale_y_continuous(breaks = fp.scale, limits = c(ri.for.df.lim[1], ri.for.df.lim[2])) + coord_flip()
+if (file.type == 1) {
+  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Transitivity.eps", horizontal = FALSE, onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+} else {
+  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Transitivity.tiff", res = tiff.res, units = "in", width = width.plot, height = height.plot)
+}
+plot_grid(rel.int, rel.int.forest, align = "h", axis = "b",labels = c("a", "b"), rel_widths = c(2, 3))
 dev.off()
 
 # connectance
-sub.df <- final.df[which(final.df$metric == "connect"), ]
-df.lim <- lim.func.for(sub.df)
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/ConnectanceForest.eps", width = width.fp, height = height.fp)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/ConnectanceForest.tiff", res = tiff.res, units = "in", width = width.fp, height = height.fp)
-}
-ggplot(data = sub.df) + 
+con.for.df <- final.df[which(final.df$metric == "connect"), ]
+con.for.df.lim <- lim.func.for(con.for.df)
+connect.forest <- ggplot(data = con.for.df) + 
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = fp.lwd) + 
   geom_errorbar(aes(x = network, ymin = CI.l.post, ymax = CI.u.post), width = 0.3, size = fp.lwd) + 
   geom_point(aes(x = network, y = est.post, shape = CtrlTreatment)) + 
   labs(x = "", y = "Weighted connectance") + theme_classic() + fp.theme +
-  scale_shape_manual(values = fp.shape) + scale_y_continuous(limits = c(df.lim[1], df.lim[2])) + coord_flip()
+  scale_shape_manual(values = fp.shape) + 
+  scale_y_continuous(limits = c(con.for.df.lim[1], con.for.df.lim[2])) + coord_flip()
+if (file.type == 1) {
+  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Connectance.eps", horizontal = FALSE, onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+} else {
+  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Connectance.tiff", res = tiff.res, units = "in", width = width.plot, height = height.plot)
+}
+plot_grid(connect, connect.forest, align = "h", axis = "b",labels = c("a", "b"), rel_widths = c(2, 3))
 dev.off()
 
 
@@ -383,75 +366,6 @@ ggplot(dat = df.w, aes(x = Values, color = Distribution, size = Fit, linetype = 
   labs(x = "Weights", y = "complementary CDF") + theme_classic() + ms.theme
 dev.off()
 
-
-# figures for in-strength
-# density plots of data for insets
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/miller_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Miller and Werner 1987"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1.1, 2.6)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/engel_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Engel and Weltzin 2008"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-2, 6.7)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/armas_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Armas and Pugnaire 2011"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.6, 1.4)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/svenning_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Svenning et al. 2008"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.2, 1)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/niu_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Niu and Wan 2008"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.1, 1)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/mariotte_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Mariotte et al. 2012"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1.2, 5)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/jiang_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Jiang et al. 2014"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.5, 1.2)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/lof_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Lof et al. 2014"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.1, 0.4)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/goldberg_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Goldberg and Landa 1991"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(0, 6)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/kinlockb_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Kinlock unpublished"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1, 4)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/kinlock_is_dist.eps", width = 1, height = 1)
-ggplot(dat = df.is[which(df.is$Fit == "data" & df.is$Case == "Kinlock unpublished b"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1.2, 5.8)) +
-  theme_classic() + ms.theme
-dev.off()
 # CDF plot
 if (file.type == 1) {
   postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/instr_cdf.eps", width = width.ms, height = height.ms)
@@ -472,74 +386,6 @@ ggplot(dat = df.is, aes(x = Values, col = Distribution, size = Fit, linetype = F
   labs(x = "In-strength", y = "complementary CDF") + theme_classic() + ms.theme
 dev.off()
 
-# figures for out-strength
-# density plots of data for insets
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/miller_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Miller and Werner 1987"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1.1, 2.6)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/engel_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Engel and Weltzin 2008"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-2, 6.7)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/armas_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Armas and Pugnaire 2011"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.6, 1.4)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/svenning_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Svenning et al. 2008"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.2, 1)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/niu_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Niu and Wan 2008"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.1, 1)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/mariotte_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Mariotte et al. 2012"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1.2, 5)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/jiang_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Jiang et al. 2014"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.5, 1.2)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/lof_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Lof et al. 2014"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-0.1, 0.4)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/goldberg_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Goldberg and Landa 1991"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(0, 6)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/kinlockb_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Kinlock unpublished"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1, 4)) +
-  theme_classic() + ms.theme
-dev.off()
-cairo_ps("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/kinlock_os_dist.eps", width = 1, height = 1)
-ggplot(dat = df.os[which(df.os$Fit == "data" & df.os$Case == "Kinlock unpublished b"), ], aes(x = Values)) + 
-  geom_density(size = 0.1, fill = c("#a2a2a2")) + 
-  scale_x_continuous(limits = c(-1.2, 5.8)) +
-  theme_classic() + ms.theme
-dev.off()
 # CDF plot
 if (file.type == 1) {
   postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/outstr_cdf.eps", width = width.ms, height = height.ms)

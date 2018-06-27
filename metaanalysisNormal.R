@@ -126,20 +126,38 @@ for (a in 1:length(metrics.ma)) {
 
 MA.networks <- MA[which(MA$network != "All"), ]
 rownames(MA.networks) <- 1:nrow(MA.networks)
-MA.all <- MA[which(MA$network == "All"), ]
-MA.all$n <- NULL
-MA.all[which(MA.all$param == "sigma" | MA.all$param == "mu" | MA.all$param == "Q"), "n"] <- net.num
-MA.all[which(MA.all$param == "True ctrl"), "n"] <- 13
-MA.all[which(MA.all$param == "Mono ctrl"), "n"] <- 17
-MA.all[which(MA.all$param == "Grassland"), "n"] <- 19
-MA.all[which(MA.all$param == "Other"), "n"] <- 11
-MA.all[which(MA.all$param == "Greenhouse"), "n"] <- 12
-MA.all[which(MA.all$param == "Field"), "n"] <- 7
-MA.all[which(MA.all$param == "Garden"), "n"] <- 12
-MA.all[which(MA.all$param == "Herbaceous"), "n"] <- 23
-MA.all[which(MA.all$param == "Woody"), "n"] <- 9
-MA.all[which(MA.all$param == "Juvenile"), "n"] <- 25
-MA.all[which(MA.all$param == "Adult"), "n"] <- 7
+
+MA.str.ind <- MA[which(MA$network == "All" & MA$metric != "asymm"), ]
+MA.str.ind$n <- NULL
+MA.str.ind[which(MA.str.ind$param == "sigma" | MA.str.ind$param == "mu" | MA.str.ind$param == "Q"), "n"] <- net.num
+MA.str.ind[which(MA.str.ind$param == "True ctrl"), "n"] <- 13
+MA.str.ind[which(MA.str.ind$param == "Mono ctrl"), "n"] <- 17
+MA.str.ind[which(MA.str.ind$param == "Grassland"), "n"] <- 19
+MA.str.ind[which(MA.str.ind$param == "Other"), "n"] <- 11
+MA.str.ind[which(MA.str.ind$param == "Greenhouse"), "n"] <- 12
+MA.str.ind[which(MA.str.ind$param == "Field"), "n"] <- 7
+MA.str.ind[which(MA.str.ind$param == "Garden"), "n"] <- 12
+MA.str.ind[which(MA.str.ind$param == "Herbaceous"), "n"] <- 23
+MA.str.ind[which(MA.str.ind$param == "Woody"), "n"] <- 9
+MA.str.ind[which(MA.str.ind$param == "Juvenile"), "n"] <- 25
+MA.str.ind[which(MA.str.ind$param == "Adult"), "n"] <- 7
+
+MA.asy <- MA[which(MA$network == "All" & MA$metric == "asymm"), ]
+MA.asy$n <- NULL
+MA.asy[which(MA.asy$param == "sigma" | MA.asy$param == "mu" | MA.asy$param == "Q"), "n"] <- net.num - 1
+MA.asy[which(MA.asy$param == "True ctrl"), "n"] <- 12
+MA.asy[which(MA.asy$param == "Mono ctrl"), "n"] <- 17
+MA.asy[which(MA.asy$param == "Grassland"), "n"] <- 19
+MA.asy[which(MA.asy$param == "Other"), "n"] <- 10
+MA.asy[which(MA.asy$param == "Greenhouse"), "n"] <- 12
+MA.asy[which(MA.asy$param == "Field"), "n"] <- 7
+MA.asy[which(MA.asy$param == "Garden"), "n"] <- 11
+MA.asy[which(MA.asy$param == "Herbaceous"), "n"] <- 23
+MA.asy[which(MA.asy$param == "Woody"), "n"] <- 8
+MA.asy[which(MA.asy$param == "Juvenile"), "n"] <- 25
+MA.asy[which(MA.asy$param == "Adult"), "n"] <- 6
+
+MA.all <- rbind(MA.str.ind, MA.asy)
 MA.all <- MA.all[, -4]
 rownames(MA.all) <- 1:nrow(MA.all)
 write.csv(x = MA.networks, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_networks_normal.csv")

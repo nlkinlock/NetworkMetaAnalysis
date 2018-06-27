@@ -131,7 +131,7 @@ b.ctrl <- c(1, 2, 8, 12, 13, 14, 16, 17, 19, 22, 23, 29, 30, 31, 32, 33, 34)
 
 # empty data frame to store output of network metrics
 # mean, standard deviation, and credible intervals
-metric.names <- c("strength", "connectance", "r", "asymm_diff", "indirect_effect", "relative_intransitivity")
+metric.names <- c("strength", "connectance", "asymm_diff", "indirect_effect", "relative_intransitivity")
 meta <- data.frame(network = character(), metric = character(), obs = numeric(), mean = numeric(), sd = numeric(), CI.l = numeric(), CI.u = numeric(), stringsAsFactors = FALSE)
 
 
@@ -220,7 +220,6 @@ for (case in 1:length(case.names)) {
   s.store <- numeric(length = R)
   C.qw.store <- numeric(length = R)
   r.intrans.store <- numeric(length = R)
-  r.store <- numeric(length = R)
   asymm.diff.store <- numeric(length = R)
   ind.eff.store <- numeric(length = R)
   #
@@ -303,9 +302,9 @@ for (case in 1:length(case.names)) {
         }
         rii.boot[is.nan(rii.boot)] <- NA
         M.boot <- matrix(rii.boot, nrow = species, ncol = species, byrow = TRUE)
-        diag(M.boot) <- NA
       }
     }
+    diag(M.boot) <- NA
     M <- t(M.boot)
     #
     # CALCULATE NETWORK METRICS
@@ -322,14 +321,13 @@ for (case in 1:length(case.names)) {
     r.intrans.store[iteration] <- r.intrans
     # asymmetry (correlation coefficient r, mean difference in weights)
     source(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/asymmetry.R")
-    r.store[iteration] <- r
     asymm.diff.store[iteration] <- asymm.diff
     # indirect effect
     source(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/indirecteffect.R")
     ind.eff.store[iteration] <- mean.ind.eff
   }
   # store bootstrap distributions for all network metrics
-  boot.table <- data.frame(s.store, C.qw.store, r.store, asymm.diff.store, ind.eff.store, r.intrans.store)
+  boot.table <- data.frame(s.store, C.qw.store, asymm.diff.store, ind.eff.store, r.intrans.store)
   colnames(boot.table) <- metric.names
   #
   # calculate metrics using observed data
@@ -388,9 +386,9 @@ for (case in 1:length(case.names)) {
       }
     }
     M.obs <- matrix(rii.obs, nrow = species, ncol = species, byrow = TRUE)
-    diag(M.obs) <- NA
   }
   write.table(x = M.obs, file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Complete/", case.names[case], ".csv", sep = ""), sep = ",", row.names = FALSE, col.names = FALSE)
+  diag(M.obs) <- NA
   M <- t(M.obs)
   source(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/topology.R")
   strength <- mean.s
@@ -399,7 +397,7 @@ for (case in 1:length(case.names)) {
   source(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/asymmetry.R")
   source(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/indirecteffect.R")
   ind.eff <- mean.ind.eff
-  obs.vec <- c(strength, C.qw, r, asymm.diff, ind.eff, r.intrans)
+  obs.vec <- c(strength, C.qw, asymm.diff, ind.eff, r.intrans)
   names(obs.vec) <- metric.names
   
   # STORE BOOTSTRAP OUTPUT

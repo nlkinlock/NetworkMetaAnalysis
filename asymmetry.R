@@ -9,11 +9,6 @@ flat <- c(M.r)  # flatten matrix and its transpose, this gives w(ij) and w(ji) i
 flat.t <- c(t(M.r))
 w.ij <- flat[index]
 w.ji <- flat.t[index]
-# if (all(is.na(w.ij) | is.na(w.ji))) {
-#   r <- NA
-# } else {
-#   r <- cor(w.ij, w.ji, use = "complete.obs")  # correlation coefficient
-# }
 asymm.diff <- mean(abs(w.ij - w.ji), na.rm = TRUE)
 
 

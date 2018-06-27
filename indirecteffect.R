@@ -1,46 +1,33 @@
 # Indirect effect
-# developed from Scotti et al 2007
 
-# n step effect of species i on species j
-# effect of species j on all species aside from species i (the direct effect) multiplied by each species's own effect on species i
-# e.g. indirect effect of species b on species a (4 spp. total) = alpha(bc) * alpha (ca) + alpha(bd) * alpha(da)
-# each element: sum is the total indirect effects acted upon species a by all other species in network
-
-# use this data if needed
-# M <- matrix(data = c(1, 2, 3, 2, 3, 1, 1, 2, 2, 1, 1, 2, 1, 2, 2, 1), nrow = 4, ncol = 4)
-
-level1 <- c() #3 blank vectors
-level2 <- c()
-level3 <- c()
-for (j in 1:ncol(M)) {  # outer loop is the species upon whom indirect effects are acting (species j)
-  for (i in 1:nrow(M)) {  # center loop is the species indirect effects towards j
-    if (i == j) {  # skip self loop of j on j
+# effect of species i on species j, weighting by effects of other species on species i (one-step removed effect)
+M.i <- M
+level1.out <- c()
+level2.out <- c()
+level1.in <- c()
+level2.in <- c()
+for (j in 1:ncol(M.i)) {  # outer loop is the species upon whom indirect effects are acting (species j)
+  for (i in 1:nrow(M.i)) {  # center loop is species i indirect effects towards j
+    if (i == species & j == species) {
+      level1.out[i] <- NA
+      level1.in[i] <- NA
+    } else if (i == j) {  # skip self loop of j on j
       next
     } else {
-      for (h in 1:ncol(M)) { # inner loop is the effect of species i on all other species (each one is species h)
-        if (h == i) {  # skip self loop of i on i
-          next
-        }
-        if (h == j) {  # skip direct effect of i on j
-          next
-        } else {
-           level1[h] <- M[i, h] * M[h, j]  # effect of j on h multiplied by h's effect on a
-        }
-      }
+      level1.out[i] <- ifelse(M.i[j, i] < 0, M.i[j, i] - sum(M.i[i, ], na.rm = TRUE),  M.i[j, i] + sum(M.i[i, ], na.rm = TRUE))  # direct effect of i on j divided by i's effect on community (out-strength)
+      level1.in[i] <- ifelse(M.i[i, j] < 0, M.i[i, j] - sum(M.i[, i], na.rm = TRUE),  M.i[i, j] + sum(M.i[, i], na.rm = TRUE))  # direct effect of i on j divided by effect of community on i (in-strength)
     }
-    level2[i] <- sum(level1, na.rm = TRUE) # indirect effect of i on j
-    level1 <- c()  # need to clear vectors each iteration because of NAs
   }
-  level3[j] <- sum(level2, na.rm = TRUE) # indirect effect of all species on j
-  level2 <- c()
+  level1.out[is.infinite(level1.out)] <- NA
+  level1.in[is.infinite(level1.in)] <- NA
+  level2.out[j] <- sum(level1.out, na.rm = TRUE) # indirect effect of all species on j
+  level2.in[j] <- sum(level1.in, na.rm = TRUE)
+  level1.out <- c()
+  level1.in <- c()
 }
-level3
-
-ind.eff <- level3
-mean.ind.eff <- mean(ind.eff) / nrow(M)
-
-
-
+level2.out[level2.out == 0] <- NA
+level2.in[level2.in == 0] <- NA
+mean.ind.eff <- mean(level2.out, na.rm = TRUE) / nrow(M.i)
 
 
 
