@@ -4,91 +4,12 @@
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # INITIALIZE MODEL SELECTION --------------------------------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-library(actuar)
-library(loo)
-library(data.table)
-#
-# JAGS models
-#
-# uniform distribution 
-# data ~ Uniform(min, max)
-# uniform <- "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/uniform.jags"
-# sink("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/uniform.jags")
-# cat("
-#     model {
-#     for (i in 1:k) {
-#     y[i] ~ dunif(param1, param2)
-#     loglik[i] <- logdensity.unif(y[i], param1, param2)
-#     }
-#     param1 ~ dnorm(0, 1E-6)
-#     param2 ~ dnorm(0, 1E-6)
-#     }", fill = TRUE)
-# sink()
 
-# normal distribution
-# data ~ N(mu, sigma)
-normal <- "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/normal.jags"
-sink("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/normal.jags")
-cat("
-    model {
-    for (i in 1:k) {
-    y[i] ~ dnorm(param1, tau.param2)
-    loglik[i] <- logdensity.norm(y[i], param1, tau.param2)
-    }
-    param1 ~ dnorm(0, 1E-6)
-    param2 ~ dunif(0, 1E6)
-    tau.param2 <- pow(param2, -2)
-    }", fill = TRUE)
-sink()
-
-# lognormal distribution
-# data ~ LN(mu, sigma)
-lognormal <- "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/lognormal.jags"
-sink("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/lognormal.jags")
-cat("
-    model {
-    for (i in 1:k) {
-    y[i] ~ dlnorm(param1, tau.param2)
-    loglik[i] <- logdensity.lnorm(y[i], param1, tau.param2)
-    }
-    param1 ~ dnorm(0, 1E-6)
-    param2 ~ dunif(0, 1E6)
-    tau.param2 <- pow(param2, -2)
-    }", fill = TRUE)
-sink()
-
-# exponential distribution
-# data ~ Exponential(lambda)
-exponential <- "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/exponential.jags"
-sink("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/exponential.jags")
-cat("
-    model {
-    for (i in 1:k) {
-    y[i] ~ dexp(param1)
-    loglik[i] <- logdensity.exp(y[i], param1)
-    }
-    param1 ~ dunif(0, 1E6)
-    }", fill = TRUE)
-sink()
-
-# power law function = Pareto distribution
-# data ~ Pareto(a, c)
-pareto <- "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/pareto.jags"
-sink("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/pareto.jags")
-cat("
-    model {
-    for (i in 1:k) {
-    y[i] ~ dpar(param1, param2)
-    loglik[i] <- logdensity.par(y[i], param1, param2)
-    }
-    param1 ~ dunif(0, 1E6)
-    param2 ~ dunif(0, 1E6)
-    }", fill = TRUE)
-sink()
+sample.size <- 1000  # number of samples to take from fitted distributions
 
 #
 # model needed to sample from Pareto distribution (not in base R)
-# simulate data in JAGS
+# simulate data in JAGS, saved as text
 paretomodel <- "
 data {
 for (j in 1:case) {
@@ -102,162 +23,6 @@ fake <- 0
 }
 "
 
-#
-# functions
-#
-# function to run JAGS given the data, initial values for parameters, and model with likelihood and priors
-dist.fit.func <- function(k.input, y.input, param.inits, file.jags) {
-  jags.data <- list(k = k.input, y = y.input)
-  jags.inits <- param.inits
-  if(is.null(jags.inits()$param2)) {
-    jags.pars <- c("param1", "loglik")
-  } else {
-    jags.pars <- c("param1", "param2", "loglik")
-  }
-  jags.fit <- jags(inits = jags.inits, n.chains = nc, model.file = file.jags, working.directory = getwd(),
-                   data = jags.data, parameters.to.save = jags.pars, n.thin = nt, n.iter = ni, n.burnin = nb, DIC = TRUE)
-  return(jags.fit)
-}
-
-# functions to set initial values
-# functions to draw random values (from a given distribution) for each parallel chain
-#
-# uniform initial values, min must be smaller than max
-# unif.inits <- function() {
-#   list(param1 = runif(n = 1, min = -5, max = min(metric.list[[m]])), param2 = runif(n = 1, min = max(metric.list[[m]]), max = 10))
-# }
-
-# normal inits, mean drawn from std. normal, sd drawn from uniform greater than zero and less than 2
-norm.inits <- function() {
-  list(param1 = rnorm(n = 1, mean = 0, sd = 1), param2 = runif(n = 1, min = 0, max = 2))
-}
-
-# exponential inits for rate, uniform distribution greater than zero and less than 10
-exp.inits <- function() {
-  list(param1 = runif(n = 1, min = 0, max = 10))
-}
-
-# pareto inits for alpha, uniform greater than 2 and less than 10, and c, uniform must be less than the minimum value of data
-par.inits <- function() {
-  list(param1 = runif(n = 1, min = 2, max = 10), param2 = runif(n = 1, min = 0, max = min(metric.list[[m]])))
-}
-
-# distribution-specific functions to take random samples of a certain size given parameters
-# unif.fit.func <- function(samp.size, param1, param2) {
-#   mapply(runif, n = samp.size, min = param1, max = param2)
-# }
-
-norm.fit.func <- function(samp.size, param1, param2) {
-  mapply(rnorm, n = samp.size, mean = param1, sd = param2)
-}
-
-lnorm.fit.func <- function(samp.size, param1, param2) {
-  mapply(rlnorm, n = samp.size, meanlog = param1, sdlog = param2)
-}
-
-exp.fit.func <- function(samp.size, param1) {
-  mapply(rexp, n = samp.size, rate = param1)
-}
-
-par.fit.func <- function(samp.size, param1, param2) {
-  mapply(rpareto, n = samp.size, shape = param1, scale = param2)
-}
-
-# function to run posterior predictive checks: comparing yrep and y (the posterior distribution and observed Distribution) 
-# and comparing the medians of each distribution in bootstrap
-pp.func <- function(fit, fit.func, obs.dat, dist.name) {
-  if(any(fit$parameters.to.save == "param2")) {
-    # visual check
-    pp.predict <- fit.func(samp.size = 1000, param1 = fit$BUGSoutput$mean$param1, param2 = fit$BUGSoutput$mean$param2)
-    pp <- data.frame(metric = rep(metric.names[m], length(c(obs.dat, pp.predict))), Distribution = c(rep("observed", length(obs.dat)), rep(dist.name, length(pp.predict))), values = c(obs.dat, pp.predict))
-    pp.plot1 <- ggplot(data = pp, aes(x = values, group = Distribution, fill = Distribution)) + geom_density(alpha = 0.2) + 
-      labs(y = "Frequency", main = paste(case.names[n], metric.names[m], "Posterior predictive check: comparing yrep and y", sep = "")) + theme_classic()
-    # bootstrap of medians for random samples of distributions with fitted parameters
-    # compared to median of observed data
-    iterations <- nrow(fit$BUGSoutput$sims.matrix)
-    pp.param1 <- sample(x = fit$BUGSoutput$sims.matrix[, "param1"], size = iterations)
-    pp.param2 <- sample(x = fit$BUGSoutput$sims.matrix[, "param2"], size = iterations)
-    pp.predict <- fit.func(samp.size = length(obs.dat), param1 = pp.param1, param2 = pp.param2)
-    pp.median <- melt(apply(pp.predict, 2, median), value.name = "Median")
-    p.pp <- length(which(pp.median > median(obs.dat))) / iterations
-    pp.out <- data.frame(metric = metric.names[m], Distribution = dist.name, param1 = fit$BUGSoutput$mean$param1, param2 = fit$BUGSoutput$mean$param2, D = fit$BUGSoutput$mean$deviance, PPP = p.pp)
-    pp.plot2 <- ggplot(data = pp.median, aes(x = Median)) + geom_histogram(breaks = seq(min(obs.dat), max(obs.dat), length.out = 30), color = "gray50", fill = "gray80") + 
-      geom_vline(xintercept = median(obs.dat)) + annotate("text", x = 0.01, y = 150, label = paste("PPP = ", p.pp)) + labs(y = "Frequency", main = "Posterior predictive check: comparing medians") + theme_classic()
-    pdf(file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Diagnostics/ModelSelection/", case.names[n], "_", metric.names[m], "_", dist.name, "_ppc", sep = ""))
-    pp.plots <- plot_grid(pp.plot1, pp.plot2)
-    print(pp.plots)
-    dev.off()
-    return(pp.out)
-  } else {
-    pp.predict <- fit.func(samp.size = 1000, param1 = fit$BUGSoutput$mean$param1)
-    pp <- data.frame(metric = rep(metric.names[m], length(c(obs.dat, pp.predict))), Distribution = c(rep("observed", length(obs.dat)), rep(dist.name, length(pp.predict))), values = c(obs.dat, pp.predict))
-    pp.plot1 <- ggplot(data = pp, aes(x = values, group = Distribution, fill = Distribution)) + geom_density(alpha = 0.2) + 
-      labs(y = "Frequency", main = paste(case.names[n], metric.names[m], "Posterior predictive check: comparing yrep and y", sep = "")) + theme_classic()
-    iterations <- nrow(fit$BUGSoutput$sims.matrix)
-    pp.param1 <- sample(x = fit$BUGSoutput$sims.matrix[, "param1"], size = iterations)
-    pp.predict <- fit.func(samp.size = length(obs.dat), param1 = pp.param1)
-    pp.median <- melt(apply(pp.predict, 2, median), value.name = "Median")
-    p.pp <- length(which(pp.median > median(obs.dat))) / iterations
-    pp.out <- data.frame(metric = metric.names[m], Distribution = dist.name, param1 = fit$BUGSoutput$mean$param1, param2 = NA, D = fit$BUGSoutput$mean$deviance, PPP = p.pp)
-    pp.plot2 <- ggplot(data = pp.median, aes(x = Median)) + geom_histogram(breaks = seq(min(obs.dat), max(obs.dat), length.out = 30), color = "gray50", fill = "gray80") + 
-      geom_vline(xintercept = median(obs.dat)) + annotate("text", x = 0.01, y = 150, label = paste("PPP = ", p.pp)) + labs(y = "Frequency", main = "Posterior predictive check: comparing medians") + theme_classic()
-    pdf(file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Diagnostics/ModelSelection/", case.names[n], "_", metric.names[m], "_", dist.name, "_ppc", sep = ""))
-    pp.plots <- plot_grid(pp.plot1, pp.plot2)
-    print(pp.plots)
-    dev.off()
-    return(pp.out)
-  }
-}
-
-# function to calculate WAIC given JAGS fit
-waic.func <- function(fit) {
-  param <- fit$BUGSoutput$sims.list
-  LL <- param$loglik
-  WAIC <- waic(LL)
-  return(WAIC)
-}
-
-
-
-# functions for plotting fitted distributions
-#
-samp.size <- 1000
-
-# sample from a given distribution: provide distribution name and sampling function
-# will sample from all networks that best fit that distribution and compile data in single df (for plotting)
-dist.samp <- function(models.init, dist.name, dist.func) {
-  models <- models.init[which(models.init$Distribution == dist.name), ]
-  samp <- matrix(NA, nrow = samp.size, ncol = nrow(models))
-  if(dist.name != "Exponential") {
-    for (i in 1:nrow(models)) {
-      row.temp <- models[i, ]
-      samp.temp <- dist.func(samp.size = samp.size, param1 = row.temp$param1, param2 = row.temp$param2)
-      samp[, i] <- samp.temp
-    }
-  } else {
-    for (i in 1:nrow(models)) {
-      row.temp <- models[i, ]
-      samp.temp <- dist.func(samp.size = samp.size, param1 = row.temp$param1)
-      samp[, i] <- samp.temp
-    }
-  }
-  colnames(samp) <- models$Case
-  samp <- melt(samp)
-  df <- data.frame(Case = samp[, 2], Type = rep("Fitted", nrow(samp)), Distribution = rep(dist.name, nrow(samp)), Fit = rep(models$Fit, each = samp.size), Values = samp$value)
-  return(df)
-}
-
-pareto.samp <- function(models) {
-  dat <- list(alpha = models[which(models$Distribution == "Pareto"), "param1"], 
-              c = models[which(models$Distribution == "Pareto"), "param2"], N = samp.size, 
-              case = nrow(models[which(models$Distribution == "Pareto"), ]))
-  sim <- run.jags(model = paretomodel, data = dat, monitor = c("y"), sample = 1, n.chains = 1, summarise = FALSE)
-  sim <- coda::as.mcmc(sim)
-  sim <- matrix(data = as.vector(sim), nrow = samp.size, ncol = nrow(models[which(models$Distribution == "Pareto"), ]))
-  colnames(sim) <- models[which(models$Distribution == "Pareto"), "Case"]
-  samp <- melt(sim)
-  df <- data.frame(Case = samp[, 2], Type = rep("Fitted", nrow(samp)), Distribution = rep("Pareto", nrow(samp)), Fit = rep(models[which(models$Distribution == "Pareto"), "Fit"], each = samp.size), Values = samp$value)
-}
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # INPUT NETWORKS, LOOP THROUGH METRICS ----------------------------------------
@@ -271,28 +36,28 @@ model.selection <- data.frame(Case = character(), metric = character(), Distribu
                               SEelpdWAIC = numeric(), SEpWAIC = numeric(), SEWAIC = numeric(), stringsAsFactors = FALSE)
 
 # load all networks
-setwd("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Complete")
-files <- dir(pattern = "*.csv", full.names = TRUE)
+setwd("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Networks")
+files <- dir(pattern = "*.csv", full.names = TRUE, recursive = FALSE)
 case.names <- c()
 for (w in 1:length(files)) {
   case.names[w] <- substr(files[w], 3, nchar(files[w]) - 4)
 }
-M.all <- lapply(files, function(x) unname(as.matrix(read.csv(x, header = FALSE))))
+networks.all <- lapply(files, function(x) unname(as.matrix(read.csv(x, header = FALSE))))
 
 # don't include treatments
 last.char <- substr(case.names, start = nchar(case.names), stop = nchar(case.names))
-M.all <- M.all[last.char %in% c(as.character(0:9), "l")]
+networks.all <- networks.all[last.char %in% c(as.character(0:9), "l")]
 case.names <- case.names[last.char %in% c(as.character(0:9), "l")]
 
 # loop through all networks
-for (n in 1:length(M.all)) {
-  M.obs <- M.all[[n]]
-  species <- nrow(M.obs)
-  M <- t(M.obs)
-  s.out <- rowSums(M, na.rm = TRUE)  # calculate out-strength
-  s.in <- colSums(M, na.rm = TRUE)  # calculate in-strength
-  weight <- as.vector(x = M)  # weights in vector form
-  metric.list <- list(abs(weight[!is.na(weight)]), abs(s.in[!is.na(s.in) & s.in != 0]), abs(s.out[!is.na(s.out) & s.out != 0]))  # if strength is zero, this means entire row/col was NA
+for (n in 1:length(networks.all)) {
+  network <- networks.all[[n]]
+  species <- nrow(network)
+  network <- t(network)
+  out.strength <- rowSums(network, na.rm = TRUE)  # calculate out-strength
+  in.strength <- colSums(network, na.rm = TRUE)  # calculate in-strength
+  weight <- as.vector(x = network)  # weights in vector form
+  metric.list <- list(abs(weight[!is.na(weight) & weight != 0]), abs(in.strength[!is.na(in.strength) & in.strength != 0]), abs(out.strength[!is.na(out.strength) & out.strength != 0]))  # if strength is zero, this means entire row/col was NA
   if (case.names[n] == "1731_Bush_2004" | case.names[n] == "236_Jiang_2014") {
     metric.list[[1]][which(metric.list[[1]] == 0)] <- metric.list[[1]][which(metric.list[[1]] == 0)] + 0.000000001  # for weights with true zeros, Bush and Jiang
   }
@@ -303,43 +68,44 @@ for (n in 1:length(M.all)) {
     # fit parameters
     #
     # normal fit
-    norm.fit <- dist.fit.func(k.input = length(metric.list[[m]]), y.input = metric.list[[m]], param.inits = norm.inits, file.jags = normal)
+    normal.fit <- FitDistribution(num.observations = length(metric.list[[m]]), y.input = metric.list[[m]], parameter.inits = normal.inits, file.jags = normal)
     # lognormal fit
-    lnorm.fit <- dist.fit.func(k.input = length(metric.list[[m]]), y.input = metric.list[[m]], param.inits = norm.inits, file.jags = lognormal)
+    lnormal.fit <- FitDistribution(num.observations = length(metric.list[[m]]), y.input = metric.list[[m]], parameter.inits = normal.inits, file.jags = lognormal)
     # exponential fit
-    exp.fit <- dist.fit.func(k.input = length(metric.list[[m]]), y.input = metric.list[[m]], param.inits = exp.inits, file.jags = exponential)
+    exponential.fit <- FitDistribution(num.observations = length(metric.list[[m]]), y.input = metric.list[[m]], parameter.inits = exponential.inits, file.jags = exponential)
     # pareto fit
-    par.fit <- dist.fit.func(k.input = length(metric.list[[m]]), y.input = metric.list[[m]], param.inits = par.inits, file.jags = pareto)
+    pareto.fit <- FitDistribution(num.observations = length(metric.list[[m]]), y.input = metric.list[[m]], parameter.inits = pareto.inits, file.jags = pareto)
     #
     # check convergence of parameters visually using trace plots
     #
-    MCMCtrace(object = norm.fit, params = c("param1", "param2"),  pdf = TRUE, filename = paste(case.names[n], "Normal", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence/ModelSelection", open_pdf = FALSE)
-    MCMCtrace(object = lnorm.fit, params = c("param1", "param2"),  pdf = TRUE, filename = paste(case.names[n], "Lognormal", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence/ModelSelection", open_pdf = FALSE)
-    MCMCtrace(object = exp.fit, params = c("param1"),  pdf = TRUE, filename = paste(case.names[n], "Exponential", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence/ModelSelection", open_pdf = FALSE)
-    MCMCtrace(object = par.fit, params = c("param1", "param2"),  pdf = TRUE, filename = paste(case.names[n], "Pareto", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence/ModelSelection", open_pdf = FALSE)
+    MCMCtrace(object = normal.fit, params = c("param1", "param2"),  pdf = TRUE, filename = paste(case.names[n], "Normal", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/ModelSelection", open_pdf = FALSE)
+    MCMCtrace(object = lnormal.fit, params = c("param1", "param2"),  pdf = TRUE, filename = paste(case.names[n], "Lognormal", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/ModelSelection", open_pdf = FALSE)
+    MCMCtrace(object = exponential.fit, params = c("param1"),  pdf = TRUE, filename = paste(case.names[n], "Exponential", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/ModelSelection", open_pdf = FALSE)
+    MCMCtrace(object = pareto.fit, params = c("param1", "param2"),  pdf = TRUE, filename = paste(case.names[n], "Pareto", metric.names[m], sep = "_"), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/ModelSelection", open_pdf = FALSE)
     #
     # posterior predictive checks
     #
-    pp.norm <- pp.func(fit = norm.fit, fit.func = norm.fit.func, obs.dat = metric.list[[m]], dist.name = "Normal")
-    pp.lnorm <- pp.func(fit = lnorm.fit, fit.func = lnorm.fit.func, obs.dat = metric.list[[m]], dist.name = "Lognormal")
-    pp.exp <- pp.func(fit = exp.fit, fit.func = exp.fit.func, obs.dat = metric.list[[m]], dist.name = "Exponential")
-    pp.par <- pp.func(fit = par.fit, fit.func = par.fit.func, obs.dat = metric.list[[m]], dist.name = "Pareto")
+    posterior.predictive.normal <- PosteriorPredictiveCheck(fit = normal.fit, fit.func = SampleNormalDistribution, obs.dat = metric.list[[m]], dist.name = "Normal")
+    posterior.predictive.lnormal <- PosteriorPredictiveCheck(fit = lnormal.fit, fit.func = SampleLNormDistribution, obs.dat = metric.list[[m]], dist.name = "Lognormal")
+    posterior.predictive.exponential <- PosteriorPredictiveCheck(fit = exponential.fit, fit.func = SampleExponentialDistribution, obs.dat = metric.list[[m]], dist.name = "Exponential")
+    posterior.predictive.pareto <- PosteriorPredictiveCheck(fit = pareto.fit, fit.func = SampleParetoDistribution, obs.dat = metric.list[[m]], dist.name = "Pareto")
     #
     # output
     # parameters and WAIC
     #
-    norm.waic <- waic.func(fit = norm.fit)
-    lnorm.waic <- waic.func(fit = lnorm.fit)
-    exp.waic <- waic.func(fit = exp.fit)
-    par.waic <- waic.func(fit = par.fit)
-    allmodels.waic <- loo::compare(norm.waic, lnorm.waic, exp.waic, par.waic)
+    normal.waic <- CalculateWAIC(fit = normal.fit)
+    lnormal.waic <- CalculateWAIC(fit = lnormal.fit)
+    exponential.waic <- CalculateWAIC(fit = exponential.fit)
+    pareto.waic <- CalculateWAIC(fit = pareto.fit)
+    allmodels.waic <- loo::compare(normal.waic, lnormal.waic, exponential.waic, pareto.waic)
     # store output in data frame
-    norm <- data.frame(Case = case.names[n], pp.norm, as.data.frame(t(norm.waic$estimates[, 1])), as.data.frame(t(norm.waic$estimates[, 2])), stringsAsFactors = FALSE)
-    lnorm <- data.frame(Case = case.names[n], pp.lnorm, as.data.frame(t(lnorm.waic$estimates[, 1])), as.data.frame(t(lnorm.waic$estimates[, 2])), stringsAsFactors = FALSE)
-    exp <- data.frame(Case = case.names[n], pp.exp, as.data.frame(t(exp.waic$estimates[, 1])), as.data.frame(t(exp.waic$estimates[, 2])), stringsAsFactors = FALSE)
-    par <- data.frame(Case = case.names[n], pp.par, as.data.frame(t(par.waic$estimates[, 1])), as.data.frame(t(par.waic$estimates[, 2])), stringsAsFactors = FALSE)
+    norm <- data.frame(Case = case.names[n], posterior.predictive.normal, as.data.frame(t(normal.waic$estimates[, 1])), as.data.frame(t(normal.waic$estimates[, 2])), stringsAsFactors = FALSE)
+    lnorm <- data.frame(Case = case.names[n], posterior.predictive.lnormal, as.data.frame(t(lnormal.waic$estimates[, 1])), as.data.frame(t(lnormal.waic$estimates[, 2])), stringsAsFactors = FALSE)
+    exp <- data.frame(Case = case.names[n], posterior.predictive.exponential, as.data.frame(t(exponential.waic$estimates[, 1])), as.data.frame(t(exponential.waic$estimates[, 2])), stringsAsFactors = FALSE)
+    par <- data.frame(Case = case.names[n], posterior.predictive.pareto, as.data.frame(t(pareto.waic$estimates[, 1])), as.data.frame(t(pareto.waic$estimates[, 2])), stringsAsFactors = FALSE)
     model.selection <- rbind(model.selection, norm, lnorm, exp, par)
   }
+  print(paste("Model selection for network ", case.names[n], " is complete"))
 } 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -350,27 +116,27 @@ for (n in 1:length(M.all)) {
 #
 colnames(model.selection) <- c("Case", "Metric", "Distribution", "param1", "param2", "D", "PPP", "elpdWAIC", "pWAIC", "WAIC", "SEelpdWAIC", "SEpWAIC", "SEWAIC")
 # subset by minimum WAIC
-DT <- data.table(model.selection)
-best.fit.df <- as.data.frame(DT[ , ifelse(WAIC <= min(WAIC) + 2, "best fit", "other fit"), by = list(Case, Metric)])
+best.fit.df.init <- data.table(model.selection)
+best.fit.df <- as.data.frame(best.fit.df.init[ , ifelse(WAIC <= min(WAIC) + 2, "best fit", "other fit"), by = list(Case, Metric)])
 # complete dataset
 model.selection$Fit <- best.fit.df$V1
+# subset is studies with 5+ species
 model.selection.subset <- model.selection[which(model.selection$Case %in% c("492_Miller_1987", "805_Engel_2008", "1566_Niu_2008", "1630_Mariotte_2012", "236_Jiang_2014",
                                                                             "838_Goldberg_1991", "1479_Svenning_2008", "1198_Armas_2011", "7_Lof_2014", "9998_Kinlock_unpubl",
                                                                             "9999_Kinlock_unpubl")), ]
-write.csv(x = model.selection, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/model_selection.csv", row.names = FALSE)
-write.csv(x = model.selection.subset, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/model_selection_subset.csv", row.names = FALSE)
-
+write.csv(x = model.selection, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/ModelSelection.csv", row.names = FALSE)
+write.csv(x = model.selection.subset, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/ModelSelectionSubset.csv", row.names = FALSE)
 
 
 # load file, if needed
-# model.selection <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/model_selection.csv")
+# model.selection <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/ModelSelection.csv")
 
 # compare observed data with fitted parameters
 #
 # metric 1: weight
 models.weight <- model.selection[which(model.selection$Metric == "Weight"), ]  # subset by weight only
 row.names(models.weight) <- 1:nrow(models.weight)  # relabel row names
-weights.init <- lapply(M.all, as.vector)  # observed weights (from networks) to compare with fitted weights
+weights.init <- lapply(networks.all, as.vector)  # observed weights (from networks) to compare with fitted weights
 # for each weight, assign case (needed for long form data)
 names.all <- c()
 for(i in 1:length(weights.init)) {
@@ -380,41 +146,41 @@ for(i in 1:length(weights.init)) {
 weights <- unlist(weights.init)
 weights.all <- data.frame(Case = names.all, Type = rep("Observed", length(names.all)), Distribution = rep("Data", length(names.all)), Fit = rep("data", length(names.all)), Values = abs(weights))
 # generate 1000 random samples from the posterior distibutions for each network to get fitted weights
-norm.weight <- dist.samp(models.init = models.weight, dist.name = "Normal", dist.func = norm.fit.func)
-ln.weight <- dist.samp(models.init = models.weight, dist.name = "Lognormal", dist.func = lnorm.fit.func)
-exp.weight <- dist.samp(models.init = models.weight, dist.name = "Exponential", dist.func = exp.fit.func)
-par.weight <- pareto.samp(models = models.weight)
+normal.weight <- SamplePosteriorNetwork(models.init = models.weight, dist.name = "Normal", dist.func = SampleNormalDistribution)
+ln.weight <- SamplePosteriorNetwork(models.init = models.weight, dist.name = "Lognormal", dist.func = SampleLNormDistribution)
+exponential.weight <- SamplePosteriorNetwork(models.init = models.weight, dist.name = "Exponential", dist.func = SampleExponentialDistribution)
+pareto.weight <- SamplePosteriorParetoNetwork(models = models.weight)
 # combine data and relabel cases
-dist.weight <- rbind(weights.all, norm.weight, ln.weight, exp.weight, par.weight)
-levels(dist.weight$Case) <- c("Domenech and Vila 2008", "Costa et al. 2003", "Hedberg et al. 2005", "Sangakkara and Roberts 1985",
-                              "Armas and Pugnaire 2011", "Gao et al. 2014", "Baude et al. 2011", "Gurevitch et al. 1990",
-                              "Pfeifer-Meister et al. 2008", "Pausch et al. 2013", "Svenning et al. 2008", "Saccone et al. 2010",
-                              "Cuda et al. 2015", "Marty et al. 2009", "Niu and Wan 2008", "Mariotte et al. 2012", 
-                              "Chacon and Munoz 2007", "Bush and Van Auken 2004", "Weigelt et al. 2002", "Amanullah 2013",
-                              "Fortner and Weltzin 2007", "Frerot et al. 2006", "Jiang et al. 2014", "Hendriks et al. 2015",
-                              "Farrer and Goldberg 2011", "Miller and Werner 1987", "Dehlin et al. 2008", "Lof et al. 2014",
-                              "Engel and Weltzin 2008", "Goldberg and Landa 1991", "Kinlock unpublished", "Kinlock unpublished b")
-dist.weight$Case <- factor(dist.weight$Case, levels = c("Sangakkara and Roberts 1985", "Miller and Werner 1987", "Bush and Van Auken 2004", "Frerot et al. 2006",
-                                                        "Chacon and Munoz 2007", "Dehlin et al. 2008", "Engel and Weltzin 2008", "Niu and Wan 2008", 
-                                                        "Pfeifer-Meister et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
-                                                        "Amanullah 2013", "Pausch et al. 2013", "Jiang et al. 2014", "Cuda et al. 2015", 
-                                                        "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg and Landa 1991", "Weigelt et al. 2002",
-                                                        "Costa et al. 2003", "Hedberg et al. 2005", "Fortner and Weltzin 2007", "Domenech and Vila 2008",
-                                                        "Svenning et al. 2008", "Saccone et al. 2010", "Armas and Pugnaire 2011", "Farrer and Goldberg 2011",
-                                                        "Gao et al. 2014", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
+dist.weight <- rbind(weights.all, normal.weight, ln.weight, exponential.weight, pareto.weight)
+levels(dist.weight$Case) <- c("Domènech & Vilà 2008", "Costa et al. 2003", "Hedberg et al. 2005", "Sangakk. & Roberts 1985",
+                              "Armas & Pugnaire 2011", "Gao et al. 2014", "Baude et al. 2011", "Gurevitch et al. 1990",
+                              "Pfeifer-Meis. et al. 2008", "Pausch et al. 2013", "Svenning et al. 2008", "Saccone et al. 2010",
+                              "Cuda et al. 2015", "Marty et al. 2009", "Niu & Wan 2008", "Mariotte et al. 2012", 
+                              "Chacón & Muñoz 2007", "Bush & Van Auken 2004", "Weigelt et al. 2002", "Amanull. & Stewart 2013",
+                              "Fortner & Weltzin 2007", "Frérot et al. 2006", "Jiang et al. 2014", "Hendriks et al. 2015",
+                              "Farrer & Goldberg 2011", "Miller & Werner 1987", "Dehlin et al. 2008", "Löf et al. 2014",
+                              "Engel & Weltzin 2008", "Goldberg & Landa 1991", "Kinlock unpublished (b)", "Kinlock unpublished")
+dist.weight$Case <- factor(dist.weight$Case, levels = c("Sangakk. & Roberts 1985", "Miller & Werner 1987", "Bush & Van Auken 2004", "Frérot et al. 2006",
+                                                        "Chacón & Muñoz 2007", "Dehlin et al. 2008", "Engel & Weltzin 2008", "Niu & Wan 2008", 
+                                                        "Pfeifer-Meis. et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
+                                                        "Amanull. & Stewart 2013", "Pausch et al. 2013", "Jiang et al. 2014", "Cuda et al. 2015", 
+                                                        "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg & Landa 1991", "Weigelt et al. 2002",
+                                                        "Costa et al. 2003", "Hedberg et al. 2005", "Fortner & Weltzin 2007", "Domènech & Vilà 2008",
+                                                        "Svenning et al. 2008", "Saccone et al. 2010", "Armas & Pugnaire 2011", "Farrer & Goldberg 2011",
+                                                        "Gao et al. 2014", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished"))
 dist.weight$Distribution <- factor(dist.weight$Distribution, levels = c("Data", "Normal", "Lognormal", "Exponential", "Pareto"))
-write.csv(dist.weight, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/weight_distsamples.csv")
+write.csv(dist.weight, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/WeightSamples.csv")
 
 # metric 2: in-strength
-models.is <- model.selection[which(model.selection$Metric == "In-strength"), ]
-models.is <- models.is[which(models.is$Case %in% c("492_Miller_1987", "805_Engel_2008", "1566_Niu_2008", "1630_Mariotte_2012", "236_Jiang_2014",
+models.in.strength <- model.selection[which(model.selection$Metric == "In-strength"), ]
+models.in.strength <- models.in.strength[which(models.in.strength$Case %in% c("492_Miller_1987", "805_Engel_2008", "1566_Niu_2008", "1630_Mariotte_2012", "236_Jiang_2014",
                                                    "838_Goldberg_1991", "1479_Svenning_2008", "1198_Armas_2011", "7_Lof_2014", "9998_Kinlock_unpubl",
                                                    "9999_Kinlock_unpubl")), ]
 five.spp <- c(5, 11, 15, 16, 23, 26, 28, 29, 30, 31, 32)  # only include studies with at least 5 species
-M.sub <- M.all[five.spp]
+networks.five.spp <- networks.all[five.spp]
 case.names.sub <- case.names[five.spp]
-row.names(models.is) <- 1:nrow(models.is)
-in.strength.init <- lapply(M.sub, function(x) colSums(t(x), na.rm = TRUE))
+row.names(models.in.strength) <- 1:nrow(models.in.strength)
+in.strength.init <- lapply(networks.five.spp, function(x) colSums(t(x), na.rm = TRUE))
 names.row <- c()
 for (i in 1:length(in.strength.init)) {
   test <- rep(case.names.sub[i], length(in.strength.init[[i]]))
@@ -422,39 +188,39 @@ for (i in 1:length(in.strength.init)) {
 }
 in.strength <- unlist(in.strength.init)
 in.strength.all <- data.frame(Case = names.row, Type = rep("Observed", length(names.row)), Distribution = rep("Data", length(names.row)), Fit = rep("data", length(names.row)), Values = abs(in.strength))
-norm.is <- dist.samp(models.init = models.is, dist.name = "Normal", dist.func = norm.fit.func)
-lnorm.is <- dist.samp(models.init = models.is, dist.name = "Lognormal", dist.func = lnorm.fit.func)
-exp.is <- dist.samp(models.init = models.is, dist.name = "Exponential", dist.func = exp.fit.func)
-par.is <- pareto.samp(models = models.is)
-dist.is <- rbind(in.strength.all, norm.is, lnorm.is, exp.is, par.is)
-levels(dist.is$Case) <- c("Armas and Pugnaire 2011", "Svenning et al. 2008", "Niu and Wan 2008", "Mariotte et al. 2012", 
-                          "Jiang et al. 2014", "Miller and Werner 1987", "Lof et al. 2014", "Engel and Weltzin 2008", 
-                          "Goldberg and Landa 1991", "Kinlock unpublished", "Kinlock unpublished b")
-dist.is$Case <- factor(dist.is$Case, levels = c("Miller and Werner 1987", "Engel and Weltzin 2008", "Niu and Wan 2008", "Mariotte et al. 2012", "Jiang et al. 2014", 
-                                                "Goldberg and Landa 1991", "Svenning et al. 2008", "Armas and Pugnaire 2011", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
-dist.is$Distribution <- factor(dist.is$Distribution, levels = c("Data", "Normal", "Lognormal", "Exponential", "Pareto"))
-write.csv(dist.is, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/instr_distsamples.csv")
+normal.in.strength <- SamplePosteriorNetwork(models.init = models.in.strength, dist.name = "Normal", dist.func = SampleNormalDistribution)
+lnormal.in.strength <- SamplePosteriorNetwork(models.init = models.in.strength, dist.name = "Lognormal", dist.func = SampleLNormDistribution)
+exponential.in.strength <- SamplePosteriorNetwork(models.init = models.in.strength, dist.name = "Exponential", dist.func = SampleExponentialDistribution)
+pareto.in.strength <- SamplePosteriorParetoNetwork(models = models.in.strength)
+dist.in.strength <- rbind(in.strength.all, normal.in.strength, lnormal.in.strength, exponential.in.strength, pareto.in.strength)
+levels(dist.in.strength$Case) <- c("Armas & Pugnaire 2011", "Svenning et al. 2008", "Niu & Wan 2008", "Mariotte et al. 2012", 
+                          "Jiang et al. 2014", "Miller & Werner 1987", "Löf et al. 2014", "Engel & Weltzin 2008", 
+                          "Goldberg & Landa 1991", "Kinlock unpublished (b)", "Kinlock unpublished")
+dist.in.strength$Case <- factor(dist.in.strength$Case, levels = c("Miller & Werner 1987", "Engel & Weltzin 2008", "Niu & Wan 2008", "Mariotte et al. 2012", "Jiang et al. 2014", 
+                                                "Goldberg & Landa 1991", "Svenning et al. 2008", "Armas & Pugnaire 2011", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished"))
+dist.in.strength$Distribution <- factor(dist.in.strength$Distribution, levels = c("Data", "Normal", "Lognormal", "Exponential", "Pareto"))
+write.csv(dist.in.strength, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/InStrengthSamples.csv")
 
 # metric 3: out-strength
-models.os <- model.selection[which(model.selection$Metric == "Out-strength"), ]
-models.os <- models.os[which(models.os$Case %in% c("492_Miller_1987", "805_Engel_2008", "1566_Niu_2008", "1630_Mariotte_2012", "236_Jiang_2014",
+models.out.strength <- model.selection[which(model.selection$Metric == "Out-strength"), ]
+models.out.strength <- models.out.strength[which(models.out.strength$Case %in% c("492_Miller_1987", "805_Engel_2008", "1566_Niu_2008", "1630_Mariotte_2012", "236_Jiang_2014",
                                                    "838_Goldberg_1991", "1479_Svenning_2008", "1198_Armas_2011", "7_Lof_2014", "9998_Kinlock_unpubl",
                                                    "9999_Kinlock_unpubl")), ]
-row.names(models.os) <- 1:nrow(models.os)
-out.strength.init <- lapply(M.sub, function(x) colSums(t(x), na.rm = TRUE))
+row.names(models.out.strength) <- 1:nrow(models.out.strength)
+out.strength.init <- lapply(networks.five.spp, function(x) colSums(t(x), na.rm = TRUE))
 out.strength <- unlist(out.strength.init)
 out.strength.all <- data.frame(Case = names.row, Type = rep("Observed", length(names.row)), Distribution = rep("Data", length(names.row)), Fit = rep("data", length(names.row)), Values = abs(out.strength))
-norm.os <- dist.samp(models.init = models.os, dist.name = "Normal", dist.func = norm.fit.func)
-lnorm.os <- dist.samp(models.init = models.os, dist.name = "Lognormal", dist.func = lnorm.fit.func)
-exp.os <- dist.samp(models.init = models.os, dist.name = "Exponential", dist.func = exp.fit.func)
-par.os <- pareto.samp(models = models.os)
-dist.os <- rbind(out.strength.all, norm.os, lnorm.os, exp.os, par.os)
-levels(dist.os$Case) <- c("Armas and Pugnaire 2011", "Svenning et al. 2008", "Niu and Wan 2008", "Mariotte et al. 2012", 
-                          "Jiang et al. 2014", "Miller and Werner 1987", "Lof et al. 2014", "Engel and Weltzin 2008", 
-                          "Goldberg and Landa 1991", "Kinlock unpublished", "Kinlock unpublished b")
-dist.os$Case <- factor(dist.os$Case, levels = c("Miller and Werner 1987", "Engel and Weltzin 2008", "Niu and Wan 2008", "Mariotte et al. 2012", "Jiang et al. 2014", 
-                                                "Goldberg and Landa 1991", "Svenning et al. 2008", "Armas and Pugnaire 2011", "Lof et al. 2014", "Kinlock unpublished", "Kinlock unpublished b"))
-dist.os$Distribution <- factor(dist.os$Distribution, levels = c("Data", "Normal", "Lognormal", "Exponential", "Pareto"))
-write.csv(dist.os, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/outstr_distsamples.csv")
+normal.out.strength <- SamplePosteriorNetwork(models.init = models.out.strength, dist.name = "Normal", dist.func = SampleNormalDistribution)
+lnormal.out.strength <- SamplePosteriorNetwork(models.init = models.out.strength, dist.name = "Lognormal", dist.func = SampleLNormDistribution)
+exponential.out.strength <- SamplePosteriorNetwork(models.init = models.out.strength, dist.name = "Exponential", dist.func = SampleExponentialDistribution)
+pareto.out.strength <- SamplePosteriorParetoNetwork(models = models.out.strength)
+dist.out.strength <- rbind(out.strength.all, normal.out.strength, lnormal.out.strength, exponential.out.strength, pareto.out.strength)
+levels(dist.out.strength$Case) <- c("Armas & Pugnaire 2011", "Svenning et al. 2008", "Niu & Wan 2008", "Mariotte et al. 2012", 
+                          "Jiang et al. 2014", "Miller & Werner 1987", "Löf et al. 2014", "Engel & Weltzin 2008", 
+                          "Goldberg & Landa 1991", "Kinlock unpublished (b)", "Kinlock unpublished")
+dist.out.strength$Case <- factor(dist.out.strength$Case, levels = c("Miller & Werner 1987", "Engel & Weltzin 2008", "Niu & Wan 2008", "Mariotte et al. 2012", "Jiang et al. 2014", 
+                                                "Goldberg & Landa 1991", "Svenning et al. 2008", "Armas & Pugnaire 2011", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished"))
+dist.out.strength$Distribution <- factor(dist.out.strength$Distribution, levels = c("Data", "Normal", "Lognormal", "Exponential", "Pareto"))
+write.csv(dist.out.strength, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/OutStrengthSamples.csv")
 
 

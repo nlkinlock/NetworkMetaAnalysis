@@ -7,156 +7,113 @@
 # load main data frame from combine_data.R
 # means and replicate number for each metric
 # convert to binomial effect size by multiplying proportion by replicate number and rounding
-dat.main <- merged.df[which(merged.df$metric == "connect" | merged.df$metric == "RI"), ]
-dat.main$n <- round(dat.main$Replicates, digits = 0)
-dat.main$EffectSize <- round(dat.main$obs * dat.main$n, digits = 0)
-metrics.ma <- c("connect", "RI")
+meta.analysis.init <- post.bootstrap.df[which(post.bootstrap.df$MetricName == "WeightedConnectance" | post.bootstrap.df$MetricName == "WeightedCompConnectance" | post.bootstrap.df$MetricName == "WeightedFacConnectance" | post.bootstrap.df$MetricName == "RelativeIntransitivity"), ]
+meta.analysis.init$SampleSize <- round(meta.analysis.init$Replicates, digits = 0)
+meta.analysis.init$EffectSize <- round(meta.analysis.init$ObservedMean * meta.analysis.init$SampleSize, digits = 0)
+metric.names <- c("WeightedConnectance", "WeightedCompConnectance", "WeightedFacConnectance", "RelativeIntransitivity")
 
-MA.binom <- data.frame(comparison = character(), distribution = character(), metric = character(), network = character(), param = character(), est = numeric(), CI.l = numeric(), CI.u = numeric())
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.main[which(dat.main$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize,
-                           param.inits = ma.inits, par.vec =  c("mu", "sigma", "p.hat"), file.jags = ma_binom)
-  MCMCtrace(ma.binom, excl = "deviance", pdf = TRUE, filename = paste("binom_overall_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence", open_pdf = FALSE)
-  output <- jags.extract(fit = ma.binom)
-  output.row <- data.frame(comparison = rep("Grand mean", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)  # store in overall dataframe with all metrics
-}
+meta.analysis.df <- data.frame(ModelType = character(), NumCases = integer(), Distribution = character(), MetricName = character(), Network = character(), Parameter = character(), 
+                               EstimatedValues = numeric(), MetaAnalysisCIL = numeric(), MetaAnalysisCIU = numeric())
 
-#
-# GROUPED BY EXPERIMENT TYPE ------------------------------------------------
-#
-dat.main$Grp <- as.factor(as.numeric(x = dat.main$CtrlTreatment))
-grplabels <- c("Mono ctrl", "True ctrl")
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.main[which(dat.main$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom.exp <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize, group.input = dat$Grp,
-                               g.input = length(unique(dat$Grp)), param.inits = ma.grp.inits, par.vec = c("beta", "sigma", "p.hat"), file.jags = ma_binom_grp)
-  MCMCtrace(ma.binom.exp, excl = "deviance", pdf = TRUE, filename = paste("binom_experiment_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence", open_pdf = FALSE)
-  output <- jags.extract.grp(ma.binom.exp)
-  output.row <- data.frame(comparison = rep("Exp type", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.init[which(meta.analysis.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$EffectSize)), ]
+  meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), sample.size = subset.df$SampleSize, observed.counts = subset.df$EffectSize,
+                           parameter.inits = GenerateInitsBinom, save.parameters =  c("overall.mean", "overall.sd", "estimated.prob"), file.jags = ma.binom.file)
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/binom_overall_", metric.names[a], "_", rii.type.name, sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(fit = meta.analysis.fit, groupwise = FALSE)
+  output.add <- data.frame(ModelType = rep("Grand mean", nrow(output)), NumCases = rep(nrow(subset.df), nrow(output)), Distribution = rep("Binomial", nrow(output)), output)
+  meta.analysis.df <- rbind(meta.analysis.df, output.add)  # store in overall dataframe with all metrics
 }
 
 #
 # GROUPED BY OLD FIELD/GRASSLAND ------------------------------------------------
 #
-ind <- which(dat.main$Habitat == "Old field" | dat.main$Habitat == "Grassland")
-dat.main$Grp <- NA
-dat.main$Grp[ind] <- 1
-dat.main$Grp[-ind] <- 2
-grplabels <- c("Grassland", "Other")
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.main[which(dat.main$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom.hab <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize, group.input = dat$Grp, 
-                               g.input = length(unique(dat$Grp)), param.inits = ma.grp.inits, par.vec = c("beta", "sigma", "p.hat"), file.jags = ma_binom_grp)
-  MCMCtrace(ma.binom.hab, excl = "deviance", pdf = TRUE, filename = paste("binom_habitat_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence", open_pdf = FALSE)
-  output <- jags.extract.grp(ma.binom.hab)
-  output.row <- data.frame(comparison = rep("Habitat", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)
+ind <- which(meta.analysis.init$Habitat == "Old field" | meta.analysis.init$Habitat == "Grassland")
+meta.analysis.init$Group <- NA
+meta.analysis.init$Group[ind] <- 1
+meta.analysis.init$Group[-ind] <- 2
+group.labels <- c("Grassland", "Other")
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.init[which(meta.analysis.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$EffectSize)), ]
+  meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), sample.size = subset.df$SampleSize, observed.counts = subset.df$EffectSize, group.input = subset.df$Group, 
+                               num.group = length(unique(subset.df$Group)), parameter.inits = GenerateInitsBinomGroupwise, save.parameters = c("beta", "overall.sd", "estimated.prob"), file.jags = ma.binom.group.file)
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/binom_habitat_", metric.names[a], "_", rii.type.name, sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(meta.analysis.fit, groupwise = TRUE)
+  output.add <- data.frame(ModelType = rep("Habitat", nrow(output)), NumCases = c(sum(subset.df$Group == 1), sum(subset.df$Group == 2), nrow(subset.df)), Distribution = rep("Binomial", nrow(output)), output)
+  meta.analysis.df <- rbind(meta.analysis.df, output.add)
 }
 
 #
 # GROUPED BY GREENHOUSE/FIELD/GARDEN ------------------------------------------------
 #
-gh <- which(dat.main$ExperimentClass == "Greenhouse")
-fd <- which(dat.main$ExperimentClass == "Field")
-gdn <- which(dat.main$ExperimentClass == "Garden")
-dat.main$Grp <- NA
-dat.main$Grp[gh] <- 1
-dat.main$Grp[fd] <- 2
-dat.main$Grp[gdn] <- 3
-grplabels <- c("Greenhouse", "Field", "Garden")
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.main[which(dat.main$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom.set <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize, group.input = dat$Grp,
-                               g.input = length(unique(dat$Grp)), param.inits = ma.grp.inits, par.vec = c("beta", "sigma", "p.hat"), file.jags = ma_binom_grp)
-  MCMCtrace(ma.binom.set, excl = "deviance", pdf = TRUE, filename = paste("binom_setting_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence", open_pdf = FALSE)
-  output <- jags.extract.grp(ma.binom.set)
-  output.row <- data.frame(comparison = rep("Setting", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)
+gh <- which(meta.analysis.init$ExperimentClass == "Greenhouse")
+fd <- which(meta.analysis.init$ExperimentClass == "Field")
+gdn <- which(meta.analysis.init$ExperimentClass == "Garden")
+meta.analysis.init$Group <- NA
+meta.analysis.init$Group[gh] <- 1
+meta.analysis.init$Group[fd] <- 2
+meta.analysis.init$Group[gdn] <- 3
+group.labels <- c("Greenhouse", "Field", "Garden")
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.init[which(meta.analysis.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$EffectSize)), ]
+  meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), sample.size = subset.df$SampleSize, observed.counts = subset.df$EffectSize, group.input = subset.df$Group,
+                               num.group = length(unique(subset.df$Group)), parameter.inits = GenerateInitsBinomGroupwise, save.parameters = c("beta", "overall.sd", "estimated.prob"), file.jags = ma.binom.group.file)
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/binom_setting_", metric.names[a], "_", rii.type.name, sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(meta.analysis.fit, groupwise = TRUE)
+  output.add <- data.frame(ModelType = rep("Setting", nrow(output)), NumCases = c(sum(subset.df$Group == 1), sum(subset.df$Group == 2), sum(subset.df$Group == 3), nrow(subset.df)),  Distribution = rep("Binomial", nrow(output)), output)
+  meta.analysis.df <- rbind(meta.analysis.df, output.add)
 }
 
 #
 # GROUPED BY HERBACEOUS/WOODY ------------------------------------------------
 #
-hb <- which(dat.main$WoodyHerbaceous == "Herbaceous")
-wd <- which(dat.main$WoodyHerbaceous == "Woody" | dat.main$WoodyHerbaceous == "Both")
-dat.main$Grp <- NA
-dat.main$Grp[hb] <- 1
-dat.main$Grp[wd] <- 2
-grplabels <- c("Herbaceous", "Woody")
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.main[which(dat.main$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom.hbwd <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize, group.input = dat$Grp,
-                          g.input = length(unique(dat$Grp)), param.inits = ma.grp.inits, par.vec = c("beta", "sigma", "p.hat"), file.jags = ma_binom_grp)
-  MCMCtrace(ma.binom.hbwd, excl = "deviance", pdf = TRUE, filename = paste("binom_herbwood_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence", open_pdf = FALSE)
-  output <- jags.extract.grp(ma.binom.hbwd)
-  output.row <- data.frame(comparison = rep("Habit", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)
+hb <- which(meta.analysis.init$WoodyHerbaceous == "Herbaceous")
+wd <- which(meta.analysis.init$WoodyHerbaceous == "Woody" | meta.analysis.init$WoodyHerbaceous == "Both")
+meta.analysis.init$Group <- NA
+meta.analysis.init$Group[hb] <- 1
+meta.analysis.init$Group[wd] <- 2
+group.labels <- c("Herbaceous", "Woody")
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.init[which(meta.analysis.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$EffectSize)), ]
+  meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), sample.size = subset.df$SampleSize, observed.counts = subset.df$EffectSize, group.input = subset.df$Group,
+                          num.group = length(unique(subset.df$Group)), parameter.inits = GenerateInitsBinomGroupwise, save.parameters = c("beta", "overall.sd", "estimated.prob"), file.jags = ma.binom.group.file)
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/binom_herbwood_", metric.names[a], "_", rii.type.name, sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(meta.analysis.fit, groupwise = TRUE)
+  output.add <- data.frame(ModelType = rep("Habit", nrow(output)),NumCases = c(sum(subset.df$Group == 1), sum(subset.df$Group == 2), nrow(subset.df)), Distribution = rep("Binomial", nrow(output)), output)
+  meta.analysis.df <- rbind(meta.analysis.df, output.add)
 }
 
 #
 # GROUPED BY JUVENILE/ADULT ------------------------------------------------
 #
-jv <- which(dat.main$PlantAge == "Juvenile")
-ad <- which(dat.main$PlantAge == "Adult" | dat.main$PlantAge == "Both")
-dat.main$Grp <- NA
-dat.main$Grp[jv] <- 1
-dat.main$Grp[ad] <- 2
-grplabels <- c("Juvenile", "Adult")
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.main[which(dat.main$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom.age <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize, group.input = dat$Grp,
-                          g.input = length(unique(dat$Grp)), param.inits = ma.grp.inits, par.vec = c("beta", "sigma", "p.hat"), file.jags = ma_binom_grp)
-  MCMCtrace(ma.binom.age, excl = "deviance", pdf = TRUE, filename = paste("binom_age_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence", open_pdf = FALSE)
-  output <- jags.extract.grp(ma.binom.age)
-  output.row <- data.frame(comparison = rep("Age", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)
+jv <- which(meta.analysis.init$PlantAge == "Juvenile")
+ad <- which(meta.analysis.init$PlantAge == "Adult" | meta.analysis.init$PlantAge == "Both")
+meta.analysis.init$Group <- NA
+meta.analysis.init$Group[jv] <- 1
+meta.analysis.init$Group[ad] <- 2
+group.labels <- c("Juvenile", "Adult")
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.init[which(meta.analysis.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$EffectSize)), ]
+  meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), sample.size = subset.df$SampleSize, observed.counts = subset.df$EffectSize, group.input = subset.df$Group,
+                          num.group = length(unique(subset.df$Group)), parameter.inits = GenerateInitsBinomGroupwise, save.parameters = c("beta", "overall.sd", "estimated.prob"), file.jags = ma.binom.group.file)
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/binom_age_", metric.names[a], "_", rii.type.name, sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(meta.analysis.fit, groupwise = TRUE)
+  output.add <- data.frame(ModelType = rep("Age", nrow(output)), NumCases = c(sum(subset.df$Group == 1), sum(subset.df$Group == 2), nrow(subset.df)), Distribution = rep("Binomial", nrow(output)), output)
+  meta.analysis.df <- rbind(meta.analysis.df, output.add)
 }
 
 
-MA.binom.networks <- MA.binom[which(MA.binom$network != "All"), ]
-rownames(MA.binom.networks) <- 1:nrow(MA.binom.networks)
-MA.binom.con <- MA.binom[which(MA.binom$network == "All" & MA.binom$metric == "connect"), ]
-MA.binom.con$n <- NULL
-MA.binom.con[which(MA.binom.con$param == "sigma" | MA.binom.con$param == "mu" | MA.binom.con$param == "Q"), "n"] <- net.num
-MA.binom.con[which(MA.binom.con$param == "True ctrl"), "n"] <- 13
-MA.binom.con[which(MA.binom.con$param == "Mono ctrl"), "n"] <- 17
-MA.binom.con[which(MA.binom.con$param == "Grassland"), "n"] <- 19
-MA.binom.con[which(MA.binom.con$param == "Other"), "n"] <- 11
-MA.binom.con[which(MA.binom.con$param == "Greenhouse"), "n"] <- 12
-MA.binom.con[which(MA.binom.con$param == "Field"), "n"] <- 7
-MA.binom.con[which(MA.binom.con$param == "Garden"), "n"] <- 12
-MA.binom.con[which(MA.binom.con$param == "Herbaceous"), "n"] <- 23
-MA.binom.con[which(MA.binom.con$param == "Woody"), "n"] <- 9
-MA.binom.con[which(MA.binom.con$param == "Juvenile"), "n"] <- 25
-MA.binom.con[which(MA.binom.con$param == "Adult"), "n"] <- 7
-MA.binom.ri<- MA.binom[which(MA.binom$network == "All" & MA.binom$metric == "RI"), ]
-MA.binom.ri$n <- NULL
-MA.binom.ri[which(MA.binom.ri$param == "sigma" | MA.binom.ri$param == "mu" | MA.binom.ri$param == "Q"), "n"] <- net.num - 1
-MA.binom.ri[which(MA.binom.ri$param == "True ctrl"), "n"] <- 12
-MA.binom.ri[which(MA.binom.ri$param == "Mono ctrl"), "n"] <- 17
-MA.binom.ri[which(MA.binom.ri$param == "Grassland"), "n"] <- 19
-MA.binom.ri[which(MA.binom.ri$param == "Other"), "n"] <- 10
-MA.binom.ri[which(MA.binom.ri$param == "Greenhouse"), "n"] <- 12
-MA.binom.ri[which(MA.binom.ri$param == "Field"), "n"] <- 7
-MA.binom.ri[which(MA.binom.ri$param == "Garden"), "n"] <- 11
-MA.binom.ri[which(MA.binom.ri$param == "Herbaceous"), "n"] <- 23
-MA.binom.ri[which(MA.binom.ri$param == "Woody"), "n"] <- 8
-MA.binom.ri[which(MA.binom.ri$param == "Juvenile"), "n"] <- 25
-MA.binom.ri[which(MA.binom.ri$param == "Adult"), "n"] <- 6
-
-MA.binom.all <- rbind(MA.binom.con, MA.binom.ri)
-MA.binom.all <- MA.binom.all[, -4]
-rownames(MA.binom.all) <- 1:nrow(MA.binom.all)
-write.csv(x = MA.binom.networks, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_networks_binom.csv")
-write.csv(x = MA.binom.all, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_binom.csv")
+meta.analysis.by.network <- meta.analysis.df[which(meta.analysis.df$Network != "All"), ]
+rownames(meta.analysis.by.network) <- 1:nrow(meta.analysis.by.network)
+meta.analysis.df <- meta.analysis.df[which(meta.analysis.df$Network == "All"), ]
+meta.analysis.df <- meta.analysis.df[, -5]
+rownames(meta.analysis.df) <- 1:nrow(meta.analysis.df)
+write.csv(x = meta.analysis.by.network, file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/MetaAnalysis_ByNetwork_Binomial_", rii.type.name, ".csv", sep = ""))
+write.csv(x = meta.analysis.df, file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/MetaAnalysis_Binomial_", rii.type.name, ".csv", sep = ""))
 
 

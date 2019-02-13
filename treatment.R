@@ -4,25 +4,26 @@
 # LOAD TREATMENT NETWORKS AND COMBINE W/ CODING TABLE -------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
-treatments <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Output/allMetrics_Treatments.csv", row.names = 1)
-treatments <- data.frame(treatments, SD.l = treatments$obs - treatments$sd, SD.u = treatments$obs + treatments$sd)
-treatments$var <- treatments$sd^2
-UniqueID <- c()
-for (z in 1:length(treatments$network)) {
-  if (substring(treatments$network[z], 5, 5) == "_") {
-    UniqueID[z] <- as.integer(substring(treatments$network[z], 1, 4))
-  } else if (substring(treatments$network[z], 2, 2) == "_") {
-    UniqueID[z] <- as.integer(substring(treatments$network[z], 1, 1))
-  } else {
-    UniqueID[z] <- as.integer(substring(treatments$network[z], 1, 3))
-  }
+
+# all networks with monoculture control (1) or include networks with true control only (2)?
+set.rii.control.type <- 2
+
+treatments.df <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/NetworkMetricsTreatments.csv", row.names = 1)
+
+if (set.rii.control.type == 1) {
+  treatments.df <- treatments.df[which(treatments.df$CompetitionComparison == "Monoculture"), ]
+} else if (set.rii.control.type == 2) {
+  true.ctrl.indices <- c(grep(pattern = "1448_Gurevitch_1990", x = treatments.df$Network[which(treatments.df$CompetitionComparison == "Monoculture")]), 
+                         grep(pattern = "1787_Weigelt_2002", x = treatments.df$Network[which(treatments.df$CompetitionComparison == "Monoculture")]))
+  treatments.df <- treatments.df[-true.ctrl.indices, ]
 }
-treatments$UniqueID <- as.factor(UniqueID)
-treatments <- treatments[which(treatments$metric != "r"), ]
-treatments$metric <- factor(treatments$metric, levels = c("strength", "indirect_effect", "asymm_diff", "relative_intransitivity", "connectance"))
-levels(treatments$metric) <- c("strength", "ind eff", "asymm", "RI", "connect")
+
+treatments.df <- data.frame(treatments.df, BootstrapSDL = treatments.df$ObservedMean - treatments.df$BootstrapSD, BootstrapSDU = treatments.df$ObservedMean + treatments.df$BootstrapSD)
+treatments.df$BootstrapVar <- treatments.df$BootstrapSD^2
+UniqueID <- ExtractUniqueID(treatments.df$Network)
+treatments.df$UniqueID <- as.factor(UniqueID)
 # combine coding table and bootstrap output
-treat.df <- join_all(list(treatments, df), by = "UniqueID")
+treatments.df <- join_all(list(treatments.df, coding.df), by = "UniqueID")
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # META-ANALYSES OF TREATMENT NETWORKS -----------------------------------------
@@ -30,92 +31,90 @@ treat.df <- join_all(list(treatments, df), by = "UniqueID")
 #
 # meta-analyses necessary for network-specific estimates (y hats)
 
-# load df with only normally distributed metrics
-dat.treat <- treat.df[which(treat.df$metric == "strength" | treat.df$metric == "asymm" | treat.df$metric == "ind eff"), ]
-zeros <- which(dat.treat$var == 0)
-dat.treat$var[zeros] <- dat.treat$var[zeros] + 1E-9
-metrics.ma <- c("strength", "asymm", "ind eff")
-MA <- data.frame(comparison = character(), distribution = character(), metric = character(), network = character(), param = character(), est = numeric(), CI.l = numeric(), CI.u = numeric())
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.treat[which(dat.treat$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$obs)), ]
-  ma.norm <- ma.jags.func(k.input = nrow(dat), y.input = dat$obs, v.input = dat$var, param.inits = ma.inits, par.vec =  c("y.hat", "mu", "sigma"), file.jags = ma_normal)
-  MCMCtrace(ma.norm, excl = "deviance", pdf = TRUE, filename = paste("normal_overall_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence")
-  output <- jags.extract(fit = ma.norm)
-  output.row <- data.frame(comparison = rep("Grand mean", nrow(output)), distribution = rep("Normal", nrow(output)), output)
-  MA <- rbind(MA, output.row)  # store in overall dataframe with all metrics
+meta.analysis.init <- treatments.df[which(treatments.df$MetricName == "MeanStrength" | treatments.df$MetricName == "Imbalance" | treatments.df$MetricName == "IndirectEffect"), ]
+zeros <- which(meta.analysis.init$BootstrapVar == 0)  # zero variance will cause model to fail, set to a negligibly small value
+meta.analysis.init$BootstrapVar[zeros] <- meta.analysis.init$BootstrapVar[zeros] + 1E-9
+metric.names <- c("MeanStrength", "Imbalance", "IndirectEffect")
+
+meta.analysis.df <- data.frame(ModelType = character(), NumCases = integer(), Distribution = character(), MetricName = character(), Network = character(), Parameter = character(), 
+                               EstimatedValues = numeric(), MetaAnalysisCIL = numeric(), MetaAnalysisCIU = numeric())
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.init[which(meta.analysis.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$ObservedMean) & !is.na(subset.df$BootstrapVar)), ]
+  meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), observed.y = subset.df$ObservedMean, observed.var = subset.df$BootstrapVar, parameter.inits = GenerateInits, 
+                                       save.parameters = c("estimated.y", "overall.mean", "overall.sd"), file.jags = ma.normal.file)
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/normal_overall_", metric.names[a], sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(fit = meta.analysis.fit, groupwise = FALSE)
+  output.add <- data.frame(ModelType = rep("Grand mean", nrow(output)), NumCases = nrow(subset.df), Distribution = rep("Normal", nrow(output)), output)
+  meta.analysis.df <- rbind(meta.analysis.df, output.add)  # store in overall dataframe with all metrics
 }
-MA.treat.networks <- MA[which(MA$network != "All"), ]
-rownames(MA.treat.networks) <- 1:nrow(MA.treat.networks)
+meta.analysis.by.network <- meta.analysis.df[which(meta.analysis.df$Network != "All"), ]
+rownames(meta.analysis.by.network) <- 1:nrow(meta.analysis.by.network)
 
 # load df with only binomially distributed metrics
-dat.treat <- treat.df[which(treat.df$metric == "connect" | treat.df$metric == "RI"), ]
-dat.treat$n <- round(dat.treat$Replicates, digits = 0)
-dat.treat$EffectSize <- round(dat.treat$obs * dat.treat$n, digits = 0)
-metrics.ma <- c("connect", "RI")
-MA.binom <- data.frame(comparison = character(), distribution = character(), metric = character(), network = character(), param = character(), est = numeric(), CI.l = numeric(), CI.u = numeric())
-for (a in 1:length(metrics.ma)) {
-  dat <- dat.treat[which(dat.treat$metric == metrics.ma[a]), ]
-  dat <- dat[which(!is.na(dat$EffectSize)), ]
-  ma.binom <- ma.jags.func(N.input = nrow(dat), n.input = dat$n, counts.input = dat$EffectSize,
-                           param.inits = ma.inits, par.vec =  c("mu", "sigma", "p.hat"), file.jags = ma_binom)
-  MCMCtrace(ma.binom, excl = "deviance", pdf = TRUE, filename = paste("binom_overall_", metrics.ma[a], sep = ""), wd = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Figures/Convergence")
-  output <- jags.extract(fit = ma.binom)
-  output.row <- data.frame(comparison = rep("Grand mean", nrow(output)), distribution = rep("Binomial", nrow(output)), output)
-  MA.binom <- rbind(MA.binom, output.row)  # store in overall dataframe with all metrics
-}
-MA.binom.treat.networks <- MA.binom[which(MA.binom$network != "All"), ]
-rownames(MA.binom.treat.networks) <- 1:nrow(MA.binom.treat.networks)
+meta.analysis.tnorm.init <- treatments.df[which(treatments.df$MetricName == "WeightedConnectance" | treatments.df$MetricName == "RelativeIntransitivity"), ]
+meta.analysis.tnorm.init$BootstrapVar <- meta.analysis.tnorm.init$BootstrapVar + 1E-6  # negligibly small value helps alleviate numerical issues with convergence
+meta.analysis.tnorm.init$ObservedMean <- meta.analysis.tnorm.init$ObservedMean + 1E-6
+metric.names <- c("WeightedConnectance", "RelativeIntransitivity")
 
+meta.analysis.tnorm.df <- data.frame(ModelType = character(), NumCases = integer(), Distribution = character(), MetricName = character(), Network = character(), Parameter = character(), 
+                               EstimatedValues = numeric(), MetaAnalysisCIL = numeric(), MetaAnalysisCIU = numeric())
+for (a in 1:length(metric.names)) {
+  subset.df <- meta.analysis.tnorm.init[which(meta.analysis.tnorm.init$MetricName == metric.names[a]), ]
+  subset.df <- subset.df[which(!is.na(subset.df$ObservedMean) & !is.na(subset.df$BootstrapVar)), ]
+  while (1 == 1) {
+    meta.analysis.fit <- RunMetaAnalysis(num.observations = nrow(subset.df), observed.y = subset.df$ObservedMean, observed.var = subset.df$BootstrapVar, parameter.inits = GenerateInits, 
+                                         save.parameters = c("estimated.y", "overall.mean", "overall.sd"), file.jags = ma.tnormal.file)
+    if (all(meta.analysis.fit$BUGSoutput$summary[, 8] < gr.threshold & meta.analysis.fit$BUGSoutput$summary[, 9] > neff.threshold)) {
+      break
+    }
+  }
+  MCMCtrace(meta.analysis.fit, excl = "deviance", pdf = TRUE, filename = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Convergence/treatment_tnormal_", metric.names[a], "_", rii.type.name, sep = ""), open_pdf = FALSE)
+  output <- ExtractJAGSOutput(fit = meta.analysis.fit, groupwise = FALSE)
+  output.add <- data.frame(ModelType = rep("Grand mean", nrow(output)), NumCases = rep(nrow(subset.df), nrow(output)), Distribution = rep("TNormal", nrow(output)), output)
+  meta.analysis.tnorm.df <- rbind(meta.analysis.tnorm.df, output.add)  # store in overall dataframe with all metrics
+}
+meta.analysis.by.network.tnorm <- meta.analysis.tnorm.df[which(meta.analysis.tnorm.df$Network != "All"), ]
+rownames(meta.analysis.by.network.tnorm) <- 1:nrow(meta.analysis.by.network.tnorm)
+meta.analysis.treatment <- rbind(meta.analysis.by.network, meta.analysis.by.network.tnorm)
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-# COMBINE TREATMENT AND CONTROL NETWORKS --------------------------------------
+# CREATE FINAL DATAFRAME ------------------------------------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 #
-# control networks
-dat.post.norm <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_networks_normal.csv", row.names = 1)
-dat.post.binom <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/metaanalysis_networks_binom.csv", row.names = 1)
-dat.post <- rbind(dat.post.norm, dat.post.binom)  # meta-analysis estimates of metrics for each network
-dat.post$est.post <- dat.post$est
-dat.post$CI.l.post <- dat.post$CI.l
-dat.post$CI.u.post <- dat.post$CI.u
-dat.post <- dat.post[, -c(1, 2, 5, 6, 7, 8)]
-# subset only networks with treatments
-ctrl.post <- dat.post[which(dat.post$network =="1448_Gurevitch_1990" | dat.post$network =="1787_Weigelt_2002" | dat.post$network =="1454_PfeiferMeister_2008" | dat.post$network =="1566_Niu_2008" | dat.post$network =="192_Amanullah_2013" | dat.post$network =="236_Jiang_2014"), ]
-ctrl.post$treatment <- rep("Control", nrow(ctrl.post))
-ctrl.post$treatmentType <- rep("Control", nrow(ctrl.post))
+network.name <- as.character(meta.analysis.treatment$Network)
+treatment.test <- substr(network.name, nchar(network.name), nchar(network.name))
+ctrl.indices <- grep(pattern = "[[:digit:]]", x = treatment.test)
+meta.analysis.treatment$Treatment <- NA
+meta.analysis.treatment$Treatment[-ctrl.indices] <- "Treatment"
+meta.analysis.treatment$Treatment[ctrl.indices] <- "Control"
+meta.analysis.treatment$TreatmentType <- NA
+meta.analysis.treatment$TreatmentType[ctrl.indices] <- "Control"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "1448_Gurevitch_1990_Fert")] <- "Increased nutrients"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "1454_PfeiferMeister_2008_LowNutrient")] <- "Decreased nutrients"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "1566_Niu_2008_Warm")] <- "Warming"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "1787_Weigelt_2002_LowWater")] <- "Decreased water"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "192_Amanullah_2013_LW")] <- "Decreased water"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "236_Jiang_2014_N")] <- "Increased nutrients"
+meta.analysis.treatment$TreatmentType[which(meta.analysis.treatment$Network == "236_Jiang_2014_Water")] <- "Increased water"
+meta.analysis.treatment$network_b <- meta.analysis.treatment$Network
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "1448_Gurevitch_1990_Fert")] <- "1448_Gurevitch_1990"
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "1454_PfeiferMeister_2008_LowNutrient")] <- "1454_PfeiferMeister_2008"
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "1566_Niu_2008_Warm")] <- "1566_Niu_2008"
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "1787_Weigelt_2002_LowWater")] <- "1787_Weigelt_2002"
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "192_Amanullah_2013_LW")] <- "192_Amanullah_2013"
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "236_Jiang_2014_N")] <- "236_Jiang_2014"
+meta.analysis.treatment$network_b[which(meta.analysis.treatment$Network == "236_Jiang_2014_Water")] <- "236_Jiang_2014"
+remove.col <- which(colnames(meta.analysis.treatment) == "Network")
+meta.analysis.treatment <- meta.analysis.treatment[, -remove.col]
+colnames(meta.analysis.treatment)[ncol(meta.analysis.treatment)] <- "Network"
+meta.analysis.treatment$Network <- factor(meta.analysis.treatment$Network)
+levels(meta.analysis.treatment$Network) <- c("Gurevitch et al. 1990", "Pfeifer-Meis. et al. 2008", "Niu & Wan 2008",  "Weigelt et al. 2002", "Amanull. & Stewart 2013", "Jiang et al. 2014")
+meta.analysis.treatment$Network <- factor(meta.analysis.treatment$Network, levels = c("Niu & Wan 2008", "Pfeifer-Meis. et al. 2008", "Amanull. & Stewart 2013", "Jiang et al. 2014", "Gurevitch et al. 1990", "Weigelt et al. 2002"))
 
-# treatment networks
-treat.post <- rbind(MA.treat.networks, MA.binom.treat.networks)
-treat.post$est.post <- treat.post$est
-treat.post$CI.l.post <- treat.post$CI.l
-treat.post$CI.u.post <- treat.post$CI.u
-treat.post <- treat.post[, -c(1, 2, 5, 6, 7, 8)]
-treat.post$treatment <- rep("Treatment", nrow(treat.post))
-treat.post$treatmentType <- NA
-treat.post$treatmentType[which(treat.post$network == "1448_Gurevitch_1990_Fert")] <- "Increased nutrients"
-treat.post$treatmentType[which(treat.post$network == "1454_PfeiferMeister_2008_LowNutrient")] <- "Decreased nutrients"
-treat.post$treatmentType[which(treat.post$network == "1566_Niu_2008_Warm")] <- "Warming"
-treat.post$treatmentType[which(treat.post$network == "1787_Weigelt_2002_LowWater")] <- "Decreased water"
-treat.post$treatmentType[which(treat.post$network == "192_Amanullah_2013_LW")] <- "Decreased water"
-treat.post$treatmentType[which(treat.post$network == "236_Jiang_2014_N")] <- "Increased nutrients"
-treat.post$treatmentType[which(treat.post$network == "236_Jiang_2014_Water")] <- "Increased water"
-treat.post$network_b <- NA
-treat.post$network_b[which(treat.post$network == "1448_Gurevitch_1990_Fert")] <- "1448_Gurevitch_1990"
-treat.post$network_b[which(treat.post$network == "1454_PfeiferMeister_2008_LowNutrient")] <- "1454_PfeiferMeister_2008"
-treat.post$network_b[which(treat.post$network == "1566_Niu_2008_Warm")] <- "1566_Niu_2008"
-treat.post$network_b[which(treat.post$network == "1787_Weigelt_2002_LowWater")] <- "1787_Weigelt_2002"
-treat.post$network_b[which(treat.post$network == "192_Amanullah_2013_LW")] <- "192_Amanullah_2013"
-treat.post$network_b[which(treat.post$network == "236_Jiang_2014_N")] <- "236_Jiang_2014"
-treat.post$network_b[which(treat.post$network == "236_Jiang_2014_Water")] <- "236_Jiang_2014"
-treat.post <- treat.post[, -2]
-colnames(treat.post)[7] <- "network"
-ctrl.treat.init <- rbind(ctrl.post, treat.post)
-ctrl.treat <- join_all(dfs = list(ctrl.treat.init, metrics), by = c("network", "metric"))
-ctrl.treat$network <- factor(ctrl.treat$network)
-levels(ctrl.treat$network) <- c("Gurevitch et al. 1990", "Pfeifer-Meister et al. 2008", "Niu and Wan 2008",  "Weigelt et al. 2002", "Amanullah 2013", "Jiang et al. 2014")
-ctrl.treat$network <- factor(ctrl.treat$network, levels = c("Niu and Wan 2008", "Pfeifer-Meister et al. 2008", "Amanullah 2013", "Jiang et al. 2014", "Gurevitch et al. 1990", "Weigelt et al. 2002"))
-
-write.csv(ctrl.treat, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/ctrl_treatment.csv")
-
+if (set.rii.control.type == 2) {
+  write.csv(x = meta.analysis.treatment, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/ControlTreatmentNetworkMetrics_TrueCtrlInc.csv")
+} else if (set.rii.control.type == 1) {
+  write.csv(x = meta.analysis.treatment, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/ControlTreatmentNetworkMetrics_MonoCtrl.csv")
+}
 
