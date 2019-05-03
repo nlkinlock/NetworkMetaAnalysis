@@ -16,6 +16,8 @@ library(plyr)
 library(actuar)
 library(loo)
 library(data.table)
+library(extrafont)
+loadfonts(device = "postscript")
 
 # Bayesian bootstrap parameters to adjust
 # number of bootstrap iterations
@@ -209,7 +211,7 @@ for (k in 1:2) {
   df.loadings <- data.frame(Variables = c("Facilitative (direct)", "Imbalanced", "Facilitative (indirect)", "Connected", "Intransitive"), PC1 = df.loadings[, 1], PC2 = df.loadings[, 2])
   centered <- scale(cases.pca, center = mu, scale = FALSE)
   df.scores <- centered  %*% eig$vectors
-  df.scores <- data.frame(Networks = as.character(net.lab), PC1 = df.scores[, 1], PC2 = df.scores[, 2])
+  df.scores <- data.frame(Networks = as.character(net.lab), PC1 = df.scores[, 1], PC2 = df.scores[, 2], PC1VarExplained = pc1.var, PC2VarExplained = pc2.var)
   write.csv(x = df.scores, file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/PCAScores_", rii.type.name, ".csv", sep = ""))
   write.csv(x = df.loadings, file = paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/PCALoadings_", rii.type.name, ".csv", sep = ""))
   

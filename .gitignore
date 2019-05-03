@@ -7,3 +7,6 @@
 *.pdf
 *.xlsx
 *.csv
+*.txt
+*.jags
+*.py

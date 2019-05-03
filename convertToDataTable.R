@@ -90,6 +90,7 @@ model.selection.true.ctrl.df$pWAIC <- round(model.selection.true.ctrl.df$pWAIC, 
 model.selection.true.ctrl.df$WAIC <- round(model.selection.true.ctrl.df$WAIC, digits = 2)
 model.selection.true.ctrl.df$SEWAIC <- round(model.selection.true.ctrl.df$SEWAIC, digits = 2)
 model.selection.df <- rbind(model.selection.df, model.selection.true.ctrl.df)
+model.selection.df <- model.selection.df[, c(13, 1:3, 12, 4:11)]
 write.csv(x = model.selection.df, file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/ModelSelectionTable_Cleaned.csv", row.names = FALSE)
 
 # calculate the best fitting distributions across networks for monoculture and true control
@@ -101,7 +102,7 @@ ddply(model.selection.true.ctrl, .(Metric, Distribution), summarise, Frequency =
 
 
 ddply(model.selection.mono.ctrl, .(Metric, Distribution), transform, MinPPPMedian = rank(PPPmedian))
-ddply(model.selection.true.ctrl, .(Metric, Distribution), summarise, Frequency = length(unique(Network)))
+ddply(model.selection.true.ctrl, .(Metric, Distribution), transform, MinPPPMedian = rank(PPPmedian))
 
 
 

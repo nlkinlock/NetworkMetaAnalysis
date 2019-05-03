@@ -73,8 +73,8 @@ Asymmetry <- function(M) {
     flat.t <- c(t(M))
     w.ij <- flat[index]
     w.ji <- flat.t[index]
-    test.asymmetry <- ifelse(test = w.ij > 0 & w.ji < 0, 1, 0)
-    proportion.asymmetry <- sum(test.asymmetry) / length(test.asymmetry)
+    test.asymmetry <- ifelse(test = (w.ij > 0 & w.ji < 0) | (w.ij < 0 & w.ji > 0), 1, 0)
+    proportion.asymmetry <- sum(test.asymmetry, na.rm = TRUE) / sum(!is.na(test.asymmetry))
   }
   return(proportion.asymmetry)
 }

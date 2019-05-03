@@ -23,6 +23,26 @@ SetAxisLimits <- function(df, is.cases = FALSE) {
   }
   
 }
+# function to save figures as EPS with embedded font
+FigureAsEPS <- function(fig, fig.name, width, height) {
+  path <- "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/"
+  setEPS()
+  postscript(paste(path, fig.name, ".eps", sep = ""), horizontal = FALSE, 
+             onefile = FALSE, paper = "special", width = width, height = height, family = "Arial")
+  print(fig)
+  dev.off()
+  embed_fonts(paste(path, fig.name, ".eps", sep = ""), outfile = paste(path, fig.name, "_Embed", ".eps", sep = ""),
+              options = "-dEPSCrop")
+}
+# function to save figures as TIFF
+FigureAsTiff <- function(fig, fig.name) {
+  tiff(paste(path, fig.name, ".tif", sep = ""), res = tiff.res, units = "in", width = width,
+       height = height)
+  print(fig)
+  dev.off()
+}
+
+
 
 # height and width of saved EPS files for meta-analysis results, forest plots, and model-selection distributions
 rii.type.name <- "MonoCtrl"
@@ -75,6 +95,7 @@ true.ctrl.init <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/O
 mono.ctrl.init$CompetitionComparison <- "Monoculture"
 true.ctrl.init$CompetitionComparison <- "True control"
 complete.df <- rbind(mono.ctrl.init, true.ctrl.init)
+levels(complete.df$Network)[levels(complete.df$Network) == "Kinlock unpublished (b)"] <- "Kinlock unpublished (B)"
 complete.df$Network <- factor(complete.df$Network, levels = rev(c("Sangakk. & Roberts 1985", "Miller & Werner 1987", "Bush & Van Auken 2004", "Frérot et al. 2006",
                                                                   "Chacón & Muñoz 2007", "Engel & Weltzin 2008", "Niu & Wan 2008", 
                                                                   "Pfeifer-Meis. et al. 2008", "Marty et al. 2009", "Baude et al. 2011", "Mariotte et al. 2012",
@@ -82,7 +103,7 @@ complete.df$Network <- factor(complete.df$Network, levels = rev(c("Sangakk. & Ro
                                                                   "Hendriks et al. 2015", "Gurevitch et al. 1990", "Goldberg & Landa 1991", "Weigelt et al. 2002",
                                                                   "Costa et al. 2003", "Hedberg et al. 2005", "Fortner & Weltzin 2007", "Domènech & Vilà 2008",
                                                                   "Svenning et al. 2008", "Saccone et al. 2010", "Armas & Pugnaire 2011", "Farrer & Goldberg 2011",
-                                                                  "Gao et al. 2014", "Löf et al. 2014", "Kinlock unpublished (b)", "Kinlock unpublished")))
+                                                                  "Gao et al. 2014", "Löf et al. 2014", "Kinlock unpublished (B)", "Kinlock unpublished")))
 complete.df$CompetitionComparison <- factor(complete.df$CompetitionComparison, levels = c("True control", "Monoculture"))
 
 mono.ctrl.meta.analysis.init <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/CompleteMetaAnalysisOutput_MonoCtrl.csv", row.names = 1)
@@ -166,14 +187,17 @@ model.selection.outstrength.true.ctrl$Case <- factor(model.selection.outstrength
 # plot of all study sites over map
 world <- map_data("world")
 worldmap <- ggplot() + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "gray95", color = "gray65", size = 0.2) + coord_fixed(1.3) + 
-  labs(x = "Longitude", y = "Latitude") + 
+  labs(x = "Longitude", y = "Latitude") + geom_point(data = coding.df, aes(x = Longitude, y = Latitude), shape = 19, size = 0.5) +
   theme(axis.title.x = element_blank(), axis.text.x = element_blank(), axis.line = element_blank(),
         axis.ticks.x = element_blank(), axis.title.y = element_blank(), axis.text.y = element_blank(), 
         axis.ticks.y = element_blank(), panel.background = element_rect(fill = "transparent",colour = NA), panel.grid.minor = element_blank(), 
         panel.grid.major = element_blank(), plot.background = element_rect(fill = "transparent",colour = NA))
-tiff(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StudySitesOnMap.tiff", res = 300, units = "in", width = 4, height = 2.5)
-worldmap + geom_point(data = coding.df, aes(x = Longitude, y = Latitude), shape = 19, size = 0.5)
-dev.off()
+postscript(file = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StudySitesOnMap.eps", res = 1200, units = "in", width = 4, height = 2.5)
+if (file.type == 1) {
+  FigureAsEPS(fig = worldmap, fig.name = "StudySitesOnMap", width = 4, height = 2.5)
+} else {
+  FigureAsTiff(fig = worldmap, fig.name = "StudySitesOnMap", width = 4, height = 2.5)
+}
 
 
 
@@ -292,16 +316,14 @@ strength.cases <- ggplot(data = strength.cases.df) +
   theme_classic() + cases.theme + coord_flip() +
   theme(legend.position = c(0.2,0.8), legend.text = element_text(size = 8), legend.title = element_text(size = 10))
 
-strength.combined <- plot_grid(strength, strength.cases, align = "h", axis = "b",labels = c("a", "b"), rel_widths = relative.widths)
+strength.combined <- plot_grid(strength, strength.cases, align = "h", axis = "b", label_fontface = "plain",labels = c("A", "B"), 
+                               rel_widths = relative.widths)
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Strength.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+  FigureAsEPS(fig = strength.combined, fig.name = "Strength", width = width.plot, height = height.plot)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Strength.tiff", res = tiff.res, units = "in", width = width.plot,
-       height = height.plot)
+  FigureAsTiff(fig = strength.combined, fig.name = "Strength", width = width.plot, height = height.plot)
 }
-print(strength.combined)
-dev.off()
+
 
 # indirect effect
 indirect.effect.cases.df <- complete.df[which(complete.df$MetricName == "IndirectEffect"), ]
@@ -320,21 +342,19 @@ indirect.effect.cases <- ggplot(data = indirect.effect.cases.df) +
   theme_classic() + cases.theme + coord_flip() +
   theme(legend.position = c(0.2,0.8), legend.text = element_text(size = 8), legend.title = element_text(size = 10))
 
-indirect.effect.combined <- plot_grid(indirect.effect, indirect.effect.cases, align = "h", axis = "b",labels = c("a", "b"), rel_widths = relative.widths)
+indirect.effect.combined <- plot_grid(indirect.effect, indirect.effect.cases, align = "h", axis = "b", labels = c("A", "B"), 
+                                      label_fontface = "plain", rel_widths = relative.widths)
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/IndEff.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+  FigureAsEPS(fig = indirect.effect.combined, fig.name = "IndEff", width = width.plot, height = height.plot)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/IndEff.tiff", res = tiff.res, units = "in", width = width.plot, 
-       height = height.plot)
+  FigureAsTiff(fig = indirect.effect.combined, fig.name = "IndEff", width = width.plot, height = height.plot)
 }
-print(indirect.effect.combined)
-dev.off()
 
 # imbalance
 imbalance.cases.df <- complete.df[which(complete.df$MetricName == "Imbalance"), ]
 imbalance.cases.df.lim <- SetAxisLimits(imbalance.cases.df, is.cases = TRUE)
 imbalance.cases <- ggplot(data = imbalance.cases.df) + 
+  geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = cases.lwd) + 
   geom_errorbar(aes(x = Network, ymin = MetaAnalysisCIL, ymax = MetaAnalysisCIU, col = CompetitionComparison), 
                 width = 0.3, size = cases.lwd, position = pd.less) + 
   geom_point(aes(x = Network, y = MetaAnalysisMean, shape = CompetitionComparison, col = CompetitionComparison), 
@@ -342,42 +362,36 @@ imbalance.cases <- ggplot(data = imbalance.cases.df) +
   labs(x = "", y = "Interaction imbalance") + 
   scale_shape_manual(values = cases.shape, name = "Network type") + 
   scale_color_manual(values = meta.analysis.colors, name = "Network type") + 
-  scale_y_continuous(limits = c(imbalance.cases.df.lim[1], imbalance.cases.df.lim[2])) + 
+  scale_y_continuous(limits = c(0, imbalance.cases.df.lim[2])) + 
   theme_classic() + cases.theme + coord_flip() +
   theme(legend.position = c(0.7, 0.2), legend.text = element_text(size = 8), legend.title = element_text(size = 10))
 
-imbalance.combined <- plot_grid(imbalance, imbalance.cases, align = "h", axis = "b",labels = c("a", "b"), rel_widths = relative.widths)
+imbalance.combined <- plot_grid(imbalance, imbalance.cases, align = "h", axis = "b", labels = c("A", "B"),
+                                label_fontface = "plain", rel_widths = relative.widths)
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Imbalance.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+  FigureAsEPS(fig = imbalance.combined, fig.name = "Imbalance", width = width.plot, height = height.plot)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Imbalance.tiff", res = tiff.res, units = "in", width = width.plot, 
-       height = height.plot)
+  FigureAsTiff(fig = imbalance.combined, fig.name = "Imbalance", width = width.plot, height = height.plot)
 }
-print(imbalance.combined)
-dev.off()
 
 # asymmetry
 asymmetry.cases.df <- complete.df[which(complete.df$MetricName == "Asymmetry"), ]
 asymmetry.cases.df.lim <- SetAxisLimits(asymmetry.cases.df, is.cases = TRUE)
 asymmetry.cases <- ggplot(data = asymmetry.cases.df) + 
+  geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = cases.lwd) + 
   geom_errorbar(aes(x = Network, ymin = MetaAnalysisCIL, ymax = MetaAnalysisCIU), 
                 width = 0.3, size = cases.lwd, position = pd.less) + 
   geom_point(aes(x = Network, y = MetaAnalysisMean), 
              position = pd.less, fill = "white") + 
-  labs(x = "", y = "Interaction asymmetry") + 
-  scale_y_continuous(limits = c(asymmetry.cases.df.lim[1], asymmetry.cases.df.lim[2])) + 
+  labs(x = "", y = "Percentage asymmetric interactions") + 
+  scale_y_continuous(limits = c(0, asymmetry.cases.df.lim[2])) + 
   theme_classic() + cases.theme + coord_flip()
-
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Asymmetry.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot / 2, height = height.plot - 1)
+  FigureAsEPS(fig = asymmetry.cases, fig.name = "Asymmetry", width = width.plot / 2, height = height.plot - 1)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Asymmetry.tiff", res = tiff.res, units = "in", 
-       width = width.plot / 2, height = height.plot - 1)
+  FigureAsTiff(fig = asymmetry.cases, fig.name = "Asymmetry", width = width.plot / 2, height = height.plot - 1)
 }
-print(asymmetry.cases)
-dev.off()
+
 
 # intransitivity
 intransitivity.cases.df <- complete.df[which(complete.df$MetricName == "RelativeIntransitivity"), ]
@@ -391,20 +405,17 @@ intransitivity.cases <- ggplot(data = intransitivity.cases.df) +
   labs(x = "", y = "Relative intransitivity") + 
   scale_shape_manual(values = cases.shape, name = "Network type") + 
   scale_color_manual(values = meta.analysis.colors, name = "Network type") + 
-  scale_y_continuous(breaks = cases.scale, limits = c(intransitivity.cases.df.lim[1], intransitivity.cases.df.lim[2])) + 
+  scale_y_continuous(breaks = cases.scale, limits = c(0, intransitivity.cases.df.lim[2])) + 
   theme_classic() + cases.theme + coord_flip() +
   theme(legend.position = c(0.7, 0.8), legend.text = element_text(size = 8), legend.title = element_text(size = 10))
 
-intransitivity.combined <- plot_grid(intransitivity, intransitivity.cases, align = "h", axis = "b",labels = c("a", "b"), rel_widths = relative.widths)
+intransitivity.combined <- plot_grid(intransitivity, intransitivity.cases, align = "h", axis = "b", labels = c("A", "B"),
+                                     label_fontface = "plain", rel_widths = relative.widths)
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Transitivity.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+  FigureAsEPS(fig = intransitivity.combined, fig.name = "Transitivity", width = width.plot, height = height.plot)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Transitivity.tiff", res = tiff.res, units = "in", width = width.plot, 
-       height = height.plot)
+  FigureAsTiff(fig = intransitivity.combined, fig.name = "Transitivity", width = width.plot, height = height.plot)
 }
-print(intransitivity.combined)
-dev.off()
 
 # connectance
 connectance.cases.df <- complete.df[which(complete.df$MetricName == "WeightedConnectance"), ]
@@ -422,16 +433,15 @@ connectance.cases <- ggplot(data = connectance.cases.df) +
   theme_classic() + cases.theme + coord_flip() +
   theme(legend.position = c(0.2, 0.9), legend.text = element_text(size = 8), legend.title = element_text(size = 10))
 
-connectance.combined <- plot_grid(connectance, connectance.cases, align = "h", axis = "b",labels = c("a", "b"), rel_widths = relative.widths)
+connectance.combined <- plot_grid(connectance, connectance.cases, align = "h", axis = "b", labels = c("A", "B"), label_fontface = "plain",
+                                  rel_widths = relative.widths)
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Connectance.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+  FigureAsEPS(fig = connectance.combined, fig.name = "Connectance", width = width.plot, height = height.plot)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Connectance.tiff", res = tiff.res, units = "in", width = width.plot,
-       height = height.plot)
+  FigureAsTiff(fig = connectance.combined, fig.name = "Connectance", width = width.plot, height = height.plot)
 }
-print(connectance.combined)
-dev.off()
+
+
 
 # connectance: facilitative, competitive, and total (absolute value)
 # meta-analysis plots
@@ -455,16 +465,12 @@ connectance.compfac <- ggplot(data = connectance.compfac.df) +
   scale_size_manual(values = meta.analysis.sizes, guide = FALSE) +
   coord_flip(ylim = c(connectance.compfac.df.lim[1], connectance.compfac.df.lim[2])) + 
   labs(x = "", y = "Weighted connectance") + theme_classic() + meta.analysis.theme
-
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/ConnectanceCompFac.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot, height = height.plot)
+  FigureAsEPS(fig = connectance.compfac, fig.name = "ConnectanceCompFac", width = width.plot - 1, height = height.plot)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/ConnectanceCompFac.tiff", res = tiff.res, units = "in", width = width.plot, 
-       height = height.plot)
+  FigureAsTiff(fig = connectance.compfac, fig.name = "ConnectanceCompFac", width = width.plot - 1, height = height.plot)
 }
-print(connectance.compfac)
-dev.off()
+
 
 # forest plots
 connectance.cases.compfac.df <- complete.df[which(complete.df$MetricName == "WeightedConnectance" | 
@@ -485,16 +491,12 @@ connectance.cases.compfac <- ggplot(data = connectance.cases.compfac.df) +
   scale_color_manual(values = c("#377eb8", "#e41a1c", "#000000"), labels = c("Facilitative", "Competitive", "Absolute value")) +
   scale_y_continuous(limits = c(connectance.cases.compfac.df.lim[1], connectance.cases.compfac.df.lim[2])) + 
   coord_flip() + theme(legend.position = "right")
-
 if (file.type == 1) {
-  postscript(paste("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/ConnectanceCompFac_Forest.eps", sep = ""), horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot + 1, height = width.plot)
+  FigureAsEPS(fig = connectance.cases.compfac, fig.name = "ConnectanceCompFac_Forest", width = width.plot, height = height.plot + 1)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/ConnectanceCompFac_Forest.tiff", res = tiff.res, units = "in", 
-       width = width.plot + 1, height = width.plot)
+  FigureAsTiff(fig = connectance.cases.compfac, fig.name = "ConnectanceCompFac_Forest", width = width.plot, height = height.plot + 1)
 }
-print(connectance.cases.compfac)
-dev.off()
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -505,22 +507,39 @@ dev.off()
 if (file.type == 1) {
   postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/PCA_MonoCtrl.eps", horizontal = FALSE, onefile = FALSE, 
              paper = "special", width = 5, height = 5)
+  par(mar = c(2.5, 1.5, 1.5, 1),  # distance from plot to side of page
+      mgp = c(1.2, 0.2, 0),  # distance from plot to label
+      las = 1,  # rotate y-axis text
+      tck = -0.005,  # reduce tick length
+      xaxs = "i", yaxs = "i")  # remove plot padding
+  palette(c("black", "#e41a1c"))
+  print(biplot(x = pca.scores.mono.ctrl.df[, 2:3], y = pca.loadings.mono.ctrl.df[, 2:3], xlabs = pca.scores.mono.ctrl.df[, 1], 
+               ylabs = pca.loadings.mono.ctrl.df[, 1], 
+               xlab = paste("PC1 (", 45.63, "% var. explained)", sep = ""), ylab = paste("PC2 (", 26.83, "% var. explained)", sep = ""), 
+               arrow.len = 0.06, xlim = c(-4.5, 4.5), ylim = c(-4.5, 4.5), cex = c(0.5, 1)))
+  abline(h = 0, lty = 2, col = gray.hex)
+  abline(v = 0, lty = 2, col = gray.hex)
+  dev.off()
+  embed_fonts("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/PCA_MonoCtrl.eps", 
+              outfile = "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/PCA_MonoCtrl_Embed.eps",
+              options = "-dEPSCrop")
 } else {
   tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/PCA_MonoCtrl.tiff", res = tiff.res, units = "in", width = 5, height = 5)
+  par(mar = c(2.5, 1.5, 1.5, 1),  # distance from plot to side of page
+      mgp = c(1.2, 0.2, 0),  # distance from plot to label
+      las = 1,  # rotate y-axis text
+      tck = -0.005,  # reduce tick length
+      xaxs = "i", yaxs = "i")  # remove plot padding
+  palette(c("black", "#e41a1c"))
+  print(biplot(x = pca.scores.mono.ctrl.df[, 2:3], y = pca.loadings.mono.ctrl.df[, 2:3], xlabs = pca.scores.mono.ctrl.df[, 1], 
+               ylabs = pca.loadings.mono.ctrl.df[, 1], 
+               xlab = paste("PC1 (", pc1.var, "% var. explained)", sep = ""), ylab = paste("PC2 (", pc2.var, "% var. explained)", sep = ""), 
+               arrow.len = 0.06, xlim = c(-4.5, 4.5), ylim = c(-4.5, 4.5), cex = c(0.5, 1)))
+  abline(h = 0, lty = 2, col = gray.hex)
+  abline(v = 0, lty = 2, col = gray.hex)
+  dev.off()
 }
-par(mar = c(2.5, 1.5, 1.5, 1),  # distance from plot to side of page
-    mgp = c(1.2, 0.2, 0),  # distance from plot to label
-    las = 1,  # rotate y-axis text
-    tck = -0.005,  # reduce tick length
-    xaxs = "i", yaxs = "i")  # remove plot padding
-palette(c("black", "#e41a1c"))
-print(biplot(x = pca.scores.mono.ctrl.df[, 2:3], y = pca.loadings.mono.ctrl.df[, 2:3], xlabs = pca.scores.mono.ctrl.df[, 1], 
-             ylabs = pca.loadings.mono.ctrl.df[, 1], 
-       xlab = paste("PC1 (", pc1.var, "% var. explained)", sep = ""), ylab = paste("PC2 (", pc2.var, "% var. explained)", sep = ""), 
-       arrow.len = 0.06, xlim = c(-4.5, 4.5), ylim = c(-4.5, 4.5), cex = c(0.5, 1)))
-abline(h = 0, lty = 2, col = gray.hex)
-abline(v = 0, lty = 2, col = gray.hex)
-dev.off()
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
@@ -555,16 +574,14 @@ out.strength.cdf.log <- ggplot(dat = model.selection.outstrength.df, aes(x = Val
                 labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
   annotation_logticks(scaled = TRUE, long = unit(1, "mm"), mid = unit(NA, "mm"), short = unit(NA, "mm")) +
   labs(x = "Out-strength", y = "complementary CDF") + theme_classic() + model.selection.theme + theme(legend.position = "none")
-
+cdf.log <- plot_grid(in.strength.cdf.log, out.strength.cdf.log, ncol = 1, align = "v", axis = "b", labels = c("A", "B"), label_fontface = "plain")
 if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF_LogLog.eps", horizontal = FALSE, onefile = FALSE, 
-             paper = "special", width = width.model.selection, height = height.model.selection)
+  FigureAsEPS(fig = cdf.log, fig.name = "StrengthCDF_LogLog", width = width.model.selection, height = height.model.selection)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF_LogLog.tiff", units = "in", width = width.model.selection, 
-       height = height.model.selection, res = tiff.res)
+  FigureAsTiff(fig = cdf.log, fig.name = "StrengthCDF_LogLog", width = width.model.selection, height = height.model.selection)
 }
-plot_grid(in.strength.cdf.log, out.strength.cdf.log, ncol = 1, align = "v", axis = "b", labels = c("a", "b"))
-dev.off()
+
+
 
 # CDF plot, not log-scaled
 # Monoculture control
@@ -585,16 +602,13 @@ out.strength.cdf <- ggplot(dat = model.selection.outstrength.df[which(model.sele
   scale_size_manual(values = c(1.0, 1.3, 0.6), guide = FALSE) + 
   scale_linetype_manual(values = c("solid", "solid", "dashed"), guide = FALSE) +
   labs(x = "Out-strength", y = "complementary CDF") + theme_classic() + model.selection.theme + theme(legend.position = "none")
-
+cdf <- plot_grid(in.strength.cdf, out.strength.cdf, ncol = 1, align = "v", axis = "b", labels = c("A", "B"), label_fontface = "plain")
 if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF.eps", horizontal = FALSE, onefile = FALSE, 
-             paper = "special", width = width.model.selection, height = height.model.selection)
+  FigureAsEPS(fig = cdf, fig.name = "StrengthCDF", width = width.model.selection, height = height.model.selection)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF.tiff", units = "in", width = width.model.selection, 
-       height = height.model.selection, res = tiff.res)
+  FigureAsTiff(fig = cdf, fig.name = "StrengthCDF", width = width.model.selection, height = height.model.selection)
 }
-plot_grid(in.strength.cdf, out.strength.cdf, ncol = 1, align = "v", axis = "b", labels = c("a", "b"))
-dev.off()
+
 
 # CDF plot, log-scaled
 # True control
@@ -623,16 +637,14 @@ out.strength.true.ctrl.cdf.log <- ggplot(dat = model.selection.outstrength.true.
                 labels = scales::trans_format("log10", scales::math_format(10^.x))) + 
   annotation_logticks(scaled = TRUE, long = unit(1, "mm"), mid = unit(NA, "mm"), short = unit(NA, "mm")) +
   labs(x = "Out-strength", y = "complementary CDF") + theme_classic() + model.selection.theme + theme(legend.position = "none")
-
+cdf.truectrl.log <- plot_grid(in.strength.true.ctrl.cdf.log, out.strength.true.ctrl.cdf.log, ncol = 1, align = "v", axis = "b", labels = c("A", "B"), 
+                              label_fontface = "plain")
 if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF_TrueCtrlOnly_LogLog.eps", horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.model.selection - 1.5, height = height.model.selection - 1)
+  FigureAsEPS(fig = cdf.truectrl.log, fig.name = "StrengthCDF_TrueCtrlOnly_LogLog", width = width.model.selection - 1.5, height = height.model.selection - 1)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF_TrueCtrlOnly_LogLog.tiff", units = "in", 
-       width = width.model.selection - 1.5, height = height.model.selection - 1, res = tiff.res)
+  FigureAsTiff(fig = cdf.truectrl.log, fig.name = "StrengthCDF_TrueCtrlOnly_LogLog", width = width.model.selection - 1.5, height = height.model.selection - 1)
 }
-plot_grid(in.strength.true.ctrl.cdf.log, out.strength.true.ctrl.cdf.log, ncol = 1, align = "v", axis = "b", labels = c("a", "b"))
-dev.off()
+
 
 # CDF plot, not log-scaled
 # True control
@@ -651,30 +663,20 @@ out.strength.true.ctrl.cdf <- ggplot(dat = model.selection.outstrength.true.ctrl
   scale_size_manual(values = c(1.0, 1.3, 0.6), guide = FALSE) + 
   scale_linetype_manual(values = c("solid", "solid", "dashed"), guide = FALSE) +
   labs(x = "Out-strength", y = "complementary CDF") + theme_classic() + model.selection.theme + theme(legend.position = "none")
-
+cdf.truectrl <- plot_grid(in.strength.true.ctrl.cdf, out.strength.true.ctrl.cdf, ncol = 1, align = "v", axis = "b", labels = c("A", "B"), label_fontface = "plain")
 if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF_TrueCtrlOnly.eps", horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.model.selection - 1.5, height = height.model.selection - 1)
+  FigureAsEPS(fig = cdf.truectrl, fig.name = "StrengthCDF_TrueCtrlOnly", width = width.model.selection - 1.5, height = height.model.selection - 1)
 } else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/StrengthCDF_TrueCtrlOnly.tiff", units = "in", 
-       width = width.model.selection - 1.5, height = height.model.selection - 1, res = tiff.res)
+  FigureAsTiff(fig = cdf.truectrl, fig.name = "StrengthCDF_TrueCtrlOnly", width = width.model.selection - 1.5, height = height.model.selection - 1)
 }
-plot_grid(in.strength.true.ctrl.cdf, out.strength.true.ctrl.cdf, ncol = 1, align = "v", axis = "b", labels = c("a", "b"))
-dev.off()
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # COMPARE SPP. CHARACTERS -----------------------------------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/SpeciesCharacterDifferences.eps", horizontal = FALSE, 
-             onefile = FALSE, paper = "special", width = width.plot - 2, height = height.plot)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/SpeciesCharacterDifferences.tiff", width = width.plot - 2, 
-       height = height.plot, units = "in", res = tiff.res)
-}
-ggplot(dat = species.character.df) + 
+species.character.plot <- ggplot(dat = species.character.df) + 
   facet_grid(Strength ~ Comparison, scales = "free_x", switch = "y") +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = cases.lwd) + 
   geom_errorbar(aes(x = MetricName, ymin = CILL, ymax = CIUL, col = CompetitionComparison), width = 0.2, size = cases.lwd, position = pd) + 
@@ -684,7 +686,11 @@ ggplot(dat = species.character.df) +
   scale_color_manual(values = rev(meta.analysis.colors)) +
   theme_classic() + meta.analysis.theme + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
-dev.off()
+if (file.type == 1) {
+  FigureAsEPS(fig = species.character.plot, fig.name = "SpeciesCharacterDifferences", width = width.plot - 2, height = height.plot)
+} else {
+  FigureAsTiff(fig = species.character.plot, fig.name = "SpeciesCharacterDifferences", width = width.plot - 2, height = height.plot)
+}
 
 
 
@@ -692,13 +698,7 @@ dev.off()
 # COMPARE TREATMENTS ----------------------------------------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/NetworkTreatments.eps", horizontal = FALSE, onefile = FALSE, 
-             paper = "special", width = 8, height = 5)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/NetworkTreatments.tiff", width = 8, height = 5, units = "in", res = tiff.res)
-}
-  ggplot(dat = treatment.df) + facet_wrap(~ Network, scales = "free", nrow = 2) +
+treatment.fig <- ggplot(dat = treatment.df) + facet_wrap(~ Network, scales = "free", nrow = 2) +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = cases.lwd) + 
   geom_errorbar(aes(x = MetricName, ymin = MetaAnalysisCIL, ymax = MetaAnalysisCIU, col = TreatmentType), position = pd.less, width = 0.3, size = cases.lwd) + 
   geom_point(aes(x = MetricName, y = MetaAnalysisMean, col = TreatmentType), size = 0.8, position = pd.less) + 
@@ -708,20 +708,18 @@ if (file.type == 1) {
         axis.text.x = element_text(size = 10, angle = 90, hjust = 1), axis.text.y = element_text(size = 10), axis.title = element_text(size = 12), 
         axis.line = element_line(size = 0.5), strip.placement = "outside", strip.text = element_text(size = 11), strip.background = element_blank(),
         panel.background = element_blank(), panel.spacing = unit(0.3, "cm"))
-dev.off()
+if (file.type == 1) {
+  FigureAsEPS(fig = treatment.fig, fig.name = "NetworkTreatments", width = 8, height = 5)
+} else {
+  FigureAsTiff(fig = treatment.fig, fig.name = "NetworkTreatments", width = 8, height = 5)
+}
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # SPP. POSITION FIGURE -------------------------------------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/SpeciesPosition.eps", horizontal = FALSE, onefile = FALSE, 
-             paper = "special", width = 5, height = 5)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/SpeciesPosition.tiff", width = 5, height = 5, units = "in", res = tiff.res)
-}
-ggplot(dat = species.position.df) + facet_grid(MetricName ~ Species, scales = "free_x") +
+species.position.fig <- ggplot(dat = species.position.df) + facet_grid(MetricName ~ Species, scales = "free_x") +
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = cases.lwd) + 
   geom_errorbar(aes(x = Network, ymin = BootstrapCIL, ymax = BootstrapCIU, col = Network), width = 0.2, size = cases.lwd) + 
   geom_point(aes(x = Network, y = BootstrapMean, col = Network)) + labs(x = "", y = "Strength")  + 
@@ -730,21 +728,21 @@ ggplot(dat = species.position.df) + facet_grid(MetricName ~ Species, scales = "f
   theme(legend.title = element_blank(), legend.text = element_text(size = 10), legend.position = "bottom", 
         axis.text.x = element_blank(), axis.text.y = element_text(size = 12), axis.title = element_text(size = 12), 
         axis.line = element_line(size = 0.5), strip.placement = "outside", strip.text = element_text(size = 12), 
-        strip.background = element_blank(), panel.background = element_blank(), panel.spacing = unit(0.5, "cm"))
-dev.off()
+        strip.background = element_blank(), panel.background = element_blank(), panel.spacing = unit(0.5, "cm"),
+        axis.ticks.x = element_blank())
+if (file.type == 1) {
+  FigureAsEPS(fig = species.position.fig, fig.name = "SpeciesPosition", width = 5, height = 5)
+} else {
+  FigureAsTiff(fig = species.position.fig, fig.name = "SpeciesPosition", width = 5, height = 5)
+}
+
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 # ADDITIVITY FIGURE -----------------------------------------------------------
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
 #
-if (file.type == 1) {
-  postscript("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Additivity.eps", horizontal = FALSE, onefile = FALSE, 
-             paper = "special", width = 3.5, height = 3)
-} else {
-  tiff("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Output/Figures/Additivity.tiff", width = 3.5, height = 3, units = "in", res = tiff.res)
-}
-ggplot(dat = additive.df[which(additive.df$Parameter == "grand mean" | additive.df$Parameter == "group mean" ), ]) + 
+additive.fig <- ggplot(dat = additive.df[which(additive.df$Parameter == "grand mean" | additive.df$Parameter == "group mean" ), ]) + 
   geom_hline(yintercept = 0, lty = "dashed", color = gray.hex, size = meta.analysis.lwd) + 
   geom_errorbar(aes(x = Network, ymin = CIL, ymax = CIU), width = 0.2, size = meta.analysis.lwd) + 
   geom_point(aes(x = Network, y = Mean, shape = Parameter, size = Parameter),  fill = "white") + 
@@ -753,7 +751,11 @@ ggplot(dat = additive.df[which(additive.df$Parameter == "grand mean" | additive.
   theme(legend.title = element_blank(), legend.text = element_blank(), legend.position = "none", 
         axis.text.x = element_text(size = 10), axis.text.y = element_text(size = 9), axis.title = element_text(size = 11), 
         axis.line = element_line(size = 0.5)) + coord_flip()
-dev.off()
+if (file.type == 1) {
+  FigureAsEPS(fig = additive.fig, fig.name = "Additivity", width = 3.5, height = 3)
+} else {
+  FigureAsTiff(fig = additive.fig, fig.name = "Additivity", width = 3.5, height = 3)
+}
 
 
 
