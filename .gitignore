@@ -1,4 +1,5 @@
 .Rproj.user
+*.Rproj
 .Rhistory
 .RData
 *.png
@@ -7,3 +8,13 @@
 *.pdf
 *.xlsx
 *.csv
+*.txt
+*.jags
+*.bugs
+*.py
+Docs/
+Input/
+Output/
+OldVersions/
+TransitivityModularity/
+Scripts/Deprecated/

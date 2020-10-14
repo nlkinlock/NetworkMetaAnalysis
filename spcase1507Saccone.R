@@ -5,9 +5,8 @@
 # load data, create data frame ------------------------------------------------
 #
 # load data table (includes biomass and se)
-dat <- read.csv("/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Biomass/Cntrl/1507_Saccone_2010.csv")
 name <- c("1507_Saccone_2010")
-
+dat <- read.csv(paste(path, "Input/BiomassData/", name, ".csv", sep = ""))
 # calculate statistics
 #
 # calculate sd from se (using number of replicates)
@@ -15,6 +14,4 @@ name <- c("1507_Saccone_2010")
 missing <- which(is.na(dat$SE) & !is.na(dat$Metric))
 dat$SE[missing] <- sample(dat$SE, size = length(missing), replace = TRUE)
 dat[which(is.na(dat$SE) & is.na(dat$Metric)), c("Metric", "SE")] <- 0 
-write.csv(dat, "/Users/nicolekinlock/Documents/NetworkMetaAnalysis/Networks/Biomass/Cntrl/1507_Saccone_2010_imp.csv")
-
-
+write.csv(dat, file = paste(path, "Input/CaseData/", name, "_imp.csv", sep = ""))
